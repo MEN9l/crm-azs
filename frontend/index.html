@@ -854,6 +854,8 @@
     loadNotificationCount();
     if (notificationPollInterval) clearInterval(notificationPollInterval);
     notificationPollInterval = setInterval(loadNotificationCount, 45000);
+    // Подключаем WebSocket к общему чату сразу после входа, чтобы сообщения приходили в оба окна даже если вкладка «Чат» не открыта
+    if (typeof connectChatWs === 'function') connectChatWs(currentChatId || 1);
   }
 
   loadNotificationCount.prevUnread = undefined;
