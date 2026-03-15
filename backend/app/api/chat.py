@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.models import Chat, Message, Notification, Task, Ticket, User
 from app.schemas import ChatResponse, MessageCreate, MessageResponse
 
+from .chat_ws import manager as ws_manager
 from .deps import get_current_user
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -46,7 +47,7 @@ def list_messages(
 
 
 @router.post("/chats/{chat_id}/messages", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
-def send_message(
+async def send_message(
     chat_id: int,
     data: MessageCreate,
     db: Annotated[Session, Depends(get_db)],
@@ -78,4 +79,19 @@ def send_message(
     if notify_ids:
         db.commit()
     msg = db.query(Message).options(joinedload(Message.sender)).filter(Message.id == msg.id).first()
+    # Рассылать новое сообщение всем подписчикам чата по WebSocket (чтобы сообщения появлялись без обновления)
+    payload = {
+        "id": msg.id,
+        "chat_id": msg.chat_id,
+        "sender_id": msg.sender_id,
+        "content": msg.content,
+        "created_at": msg.created_at.isoformat() if msg.created_at else None,
+        "sender": {
+            "id": user.id,
+            "full_name": user.full_name or "",
+            "email": user.email or "",
+            "role": user.role or "",
+        },
+    }
+    await ws_manager.broadcast(chat_id, payload)
     return msg
