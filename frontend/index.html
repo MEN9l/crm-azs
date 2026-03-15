@@ -168,6 +168,43 @@
       background: linear-gradient(180deg, #0a0612 0%, #0f0a1a 20%, #0c1222 50%, #0a0f1a 100%);
       background-size: 100% 100%;
     }
+    .auth-flame-logo {
+      position: absolute;
+      right: 8%;
+      bottom: 15%;
+      width: 180px;
+      height: 320px;
+      z-index: 2;
+      pointer-events: none;
+      filter: blur(0.5px);
+    }
+    .auth-flame-logo::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 45% 25% at 50% 95%, transparent 30%, rgba(168, 85, 247, 0.5) 55%, rgba(126, 34, 206, 0.35) 75%, transparent 100%);
+      animation: flameFlicker1 4s ease-in-out infinite;
+    }
+    .auth-flame-logo::after {
+      content: '';
+      position: absolute;
+      left: 15%;
+      right: 15%;
+      bottom: 0;
+      height: 100%;
+      background: linear-gradient(180deg, transparent 0%, transparent 20%, rgba(251, 207, 232, 0.25) 35%, rgba(236, 72, 153, 0.2) 48%, rgba(168, 85, 247, 0.45) 65%, rgba(88, 28, 135, 0.55) 82%, rgba(59, 7, 100, 0.35) 100%);
+      border-radius: 50% 50% 40% 40% / 60% 60% 20% 20%;
+      clip-path: polygon(30% 100%, 35% 45%, 50% 8%, 65% 40%, 70% 100%);
+      animation: flameFlicker2 3.5s ease-in-out infinite 0.4s;
+      box-shadow: 0 0 50px rgba(168, 85, 247, 0.35), 0 0 100px rgba(126, 34, 206, 0.2), inset 0 -20% 30px rgba(251, 207, 232, 0.08);
+    }
+    body.theme-light .auth-flame-logo::before {
+      background: radial-gradient(ellipse 45% 25% at 50% 95%, transparent 30%, rgba(192, 132, 252, 0.4) 55%, rgba(147, 51, 234, 0.25) 75%, transparent 100%);
+    }
+    body.theme-light .auth-flame-logo::after {
+      background: linear-gradient(180deg, transparent 0%, transparent 25%, rgba(244, 114, 182, 0.12) 45%, rgba(192, 132, 252, 0.3) 65%, rgba(126, 34, 206, 0.45) 85%, rgba(88, 28, 135, 0.3) 100%);
+      box-shadow: 0 0 50px rgba(192, 132, 252, 0.2);
+    }
     body.theme-light #login-screen.auth-root {
       background: linear-gradient(180deg, #1e1b4b 0%, #312e81 15%, #e0e7ff 40%, #f1f5f9 100%);
       background-size: 400% 400%;
@@ -177,7 +214,7 @@
       position: absolute;
       inset: 0;
       pointer-events: none;
-      z-index: 0;
+      z-index: 2;
     }
     .auth-flame {
       position: absolute;
@@ -259,7 +296,7 @@
       box-shadow: var(--shadow);
       backdrop-filter: blur(12px);
       position: relative;
-      z-index: 1;
+      z-index: 3;
       animation: authCardIn 0.5s ease-out forwards;
     }
     #login-screen .auth-card:nth-of-type(2),
@@ -515,6 +552,7 @@
       <div class="auth-flame"></div>
       <div class="auth-flame auth-flame-right"></div>
     </div>
+    <div class="auth-flame-logo" aria-hidden="true"></div>
     <form class="auth-card" id="login-form">
       <h1>Вход в CRM АЗС</h1>
       <div id="login-msg"></div>
