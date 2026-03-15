@@ -416,6 +416,12 @@
     .profile-dropdown-btn:hover { background: var(--accent-soft); }
     .profile-dropdown-logout { color: var(--text-muted); }
     .profile-dropdown-logout:hover { background: rgba(244, 63, 94, 0.12); color: var(--err); }
+    #profile-panel-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 600; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+    #profile-panel-overlay.open { opacity: 1; pointer-events: auto; }
+    #view-profile.profile-panel { position: fixed; top: 0; right: 0; width: 420px; max-width: 90vw; height: 100%; background: var(--bg-elevated); box-shadow: -8px 0 32px rgba(0,0,0,0.2); z-index: 601; overflow-y: auto; padding: 24px; transform: translateX(100%); transition: transform 0.3s ease; display: block !important; }
+    #view-profile.profile-panel.open { transform: translateX(0); }
+    #view-profile.profile-panel .profile-panel-close { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border: none; background: var(--input-bg); color: var(--text-muted); border-radius: 50%; cursor: pointer; font-size: 20px; line-height: 1; display: flex; align-items: center; justify-content: center; transition: background 0.15s, color 0.15s; }
+    #view-profile.profile-panel .profile-panel-close:hover { background: var(--border-subtle); color: var(--text); }
     #loading { color: var(--text-muted); }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; backdrop-filter: blur(4px); }
     .modal-overlay.hidden { display: none; }
@@ -782,8 +788,10 @@
             </section>
           </div>
         </div>
-        <div id="view-profile" class="view" style="display:none">
-          <div class="card" style="max-width:480px;">
+        <div id="profile-panel-overlay"></div>
+        <div id="view-profile" class="view profile-panel">
+          <button type="button" class="profile-panel-close" id="profile-panel-close" title="Закрыть">×</button>
+          <div class="card" style="max-width:100%;box-shadow:none;border:none;padding:0;">
             <h2 style="margin:0 0 16px;">Мой профиль</h2>
             <p style="font-size:14px;color:var(--text-muted);margin:0 0 20px;">Измените данные — они сохранятся в системе.</p>
             <div id="profile-msg" class="msg" style="display:none;margin-bottom:12px;"></div>
@@ -1117,8 +1125,16 @@
   });
   document.getElementById('profile-dropdown-edit').addEventListener('click', function(){
     document.getElementById('profile-dropdown').classList.remove('open');
-    switchView('profile');
+    document.getElementById('profile-panel-overlay').classList.add('open');
+    document.getElementById('view-profile').classList.add('open');
+    loadProfile();
   });
+  function closeProfilePanel() {
+    document.getElementById('profile-panel-overlay').classList.remove('open');
+    document.getElementById('view-profile').classList.remove('open');
+  }
+  document.getElementById('profile-panel-close').addEventListener('click', closeProfilePanel);
+  document.getElementById('profile-panel-overlay').addEventListener('click', closeProfilePanel);
   document.getElementById('profile-dropdown-logout').addEventListener('click', function(){
     document.getElementById('profile-dropdown').classList.remove('open');
     if (notificationPollInterval) { clearInterval(notificationPollInterval); notificationPollInterval = null; }
@@ -1129,6 +1145,7 @@
     if (e.key !== 'Escape') return;
     document.getElementById('notifications-dropdown').classList.remove('open');
     document.getElementById('profile-dropdown').classList.remove('open');
+    if (document.getElementById('view-profile').classList.contains('open')) { closeProfilePanel(); return; }
     var openModal = document.querySelector('.modal-overlay:not(.hidden)');
     if (!openModal) return;
     openModal.classList.add('hidden');
@@ -1249,7 +1266,7 @@
   });
 
   function switchView(name) {
-    ['dashboard','tickets','tasks','chat','profile','users'].forEach(v => {
+    ['dashboard','tickets','tasks','chat','users'].forEach(v => {
       const el = document.getElementById('view-' + v);
       if (el) {
         el.style.display = v === name ? 'block' : 'none';
