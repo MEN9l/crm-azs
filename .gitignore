@@ -1,0 +1,29 @@
+# Окружение и секреты
+.env
+.env.local
+*.pem
+
+# Данные БД (если в репозитории)
+data/
+
+# Бэкапы
+backups/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Загрузки пользователей (если не хотите коммитить)
+# backend/uploads/
+
+# Логи
+*.log
