@@ -1422,6 +1422,8 @@
 
   let currentChatId = 1;
   let chatWs = null;
+  let chatReconnectTimer = null;
+  let chatReconnectDelay = 2000;
 
   function appendChatMessage(content, senderName, createdAt) {
     var messagesEl = document.getElementById('chat-messages');
@@ -1436,16 +1438,18 @@
   }
 
   function connectChatWs(chatId) {
+    if (chatReconnectTimer) { clearTimeout(chatReconnectTimer); chatReconnectTimer = null; }
     if (chatWs) { chatWs.close(); chatWs = null; }
-    const token = getToken();
+    var token = getToken();
     if (!token) return;
-    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const url = proto + '//' + location.host + '/ws/chat/' + chatId + '?token=' + encodeURIComponent(token);
-    const ws = new WebSocket(url);
+    var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var url = proto + '//' + location.host + '/ws/chat/' + chatId + '?token=' + encodeURIComponent(token);
+    var ws = new WebSocket(url);
     chatWs = ws;
+    ws.onopen = function() { chatReconnectDelay = 2000; };
     ws.onmessage = function(ev) {
       try {
-        const m = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+        var m = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
         var content = m.content != null ? m.content : (m.message != null ? m.message : m.text);
         if (content == null) content = '';
         var me = getUser();
@@ -1454,7 +1458,13 @@
         appendChatMessage(content, senderName, m.created_at);
       } catch (_) {}
     };
-    ws.onclose = function() { chatWs = null; };
+    ws.onclose = function() {
+      chatWs = null;
+      if (!getToken()) return;
+      chatReconnectTimer = setTimeout(function() { connectChatWs(currentChatId || 1); }, chatReconnectDelay);
+      if (chatReconnectDelay < 30000) chatReconnectDelay = Math.min(chatReconnectDelay + 2000, 30000);
+    };
+    ws.onerror = function() {};
   }
 
   async function loadChat() {
