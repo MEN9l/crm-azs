@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # version убран — в новых Docker Compose не нужен
 
 services:
@@ -52,58 +51,3 @@ services:
 networks:
   crm-net:
     driver: bridge
-=======
-# version убран — в новых Docker Compose не нужен
-
-services:
-  db:
-    image: postgres:16
-    container_name: crm_db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-crm_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crm_pass}
-      POSTGRES_DB: ${POSTGRES_DB:-crm_azs}
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-    networks:
-      - crm-net
-
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: crm_backend
-    restart: unless-stopped
-    environment:
-      POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: ${POSTGRES_USER:-crm_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-crm_pass}
-      POSTGRES_DB: ${POSTGRES_DB:-crm_azs}
-      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
-    volumes:
-      - ./backend/uploads:/app/uploads
-    depends_on:
-      - db
-    networks:
-      - crm-net
-
-  nginx:
-    image: nginx:stable
-    container_name: crm_nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./frontend:/usr/share/nginx/html:ro
-    depends_on:
-      - backend
-    networks:
-      - crm-net
-
-networks:
-  crm-net:
-    driver: bridge
->>>>>>> 852de1a5a29072199160a89c1f0e1911c13683eb
