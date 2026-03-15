@@ -1,4 +1,5 @@
 """Список пользователей и админка (для admin/chief)."""
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Annotated
 
@@ -98,6 +99,30 @@ def get_user_avatar(
     if not path.is_file():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Файл не найден")
     return FileResponse(path, media_type="image/jpeg")
+
+
+ONLINE_MINUTES = 5
+
+
+@router.get("/online")
+def list_online(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Список сотрудников в сети (last_seen_at за последние 5 минут)."""
+    since = datetime.utcnow() - timedelta(minutes=ONLINE_MINUTES)
+    users = (
+        db.query(User)
+        .filter(User.is_active == True)
+        .filter(User.last_seen_at != None)
+        .filter(User.last_seen_at >= since)
+        .order_by(User.full_name)
+        .all()
+    )
+    return [
+        {"id": u.id, "full_name": u.full_name, "avatar": u.avatar}
+        for u in users
+    ]
 
 
 def _user_to_brief(u: User) -> UserBrief:

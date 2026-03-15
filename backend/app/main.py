@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.api import auth, dashboard, stations, tickets, tasks, chat, users, notifications, attachments, reports
+from app.api import auth, dashboard, stations, tickets, tasks, chat, users, notifications, attachments, reports, board
 from app.api.chat_ws import handle_ws_chat
 
 app = FastAPI(
@@ -31,6 +31,7 @@ app.include_router(notifications.router, prefix="/api")
 app.include_router(attachments.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
 app.include_router(dashboard.router, prefix="/api")
+app.include_router(board.router, prefix="/api")
 
 
 @app.websocket("/ws/chat/{chat_id}")
