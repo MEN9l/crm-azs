@@ -432,6 +432,14 @@
     .btn-primary { background: var(--accent); color: white; padding: 10px 18px; border-radius: var(--radius); border: none; font-weight: 500; cursor: pointer; transition: background var(--transition); }
     .btn-primary:hover { background: var(--accent-hover); }
     .btn-secondary { background: var(--border); color: var(--text); padding: 10px 18px; border-radius: var(--radius); border: none; font-weight: 500; cursor: pointer; }
+    .board-tab { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text-muted); font-size: 14px; cursor: pointer; transition: all var(--transition); }
+    .board-tab:hover { color: var(--text); }
+    .board-tab.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+    .board-tag { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; }
+    .board-tag-important { background: var(--err); color: white; }
+    .board-tag-tech { background: #475569; color: white; }
+    .board-tag-default { background: var(--border); color: var(--text-muted); }
+    .modal.hidden { display: none !important; }
     .btn-secondary:hover { background: var(--border-subtle); }
 
     .card-row { display: flex; flex-wrap: wrap; gap: 20px; }
@@ -556,28 +564,39 @@
           </div>
 
           <!-- Доска объявлений -->
-          <h3 style="margin:0 0 12px;font-size:14px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;">Доска объявлений</h3>
-          <div class="card" style="margin-bottom:20px;">
-            <div id="announcements-list" style="margin-bottom:16px;"></div>
-            <div style="border-top:1px solid var(--border-subtle);padding-top:16px;">
-              <input type="text" id="announcement-title" placeholder="Заголовок" style="width:100%;max-width:400px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);margin-bottom:8px;display:block;" />
-              <textarea id="announcement-content" placeholder="Текст объявления" rows="3" style="width:100%;max-width:500px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);margin-bottom:8px;resize:vertical;"></textarea>
-              <button type="button" class="btn-primary" id="announcement-submit">Опубликовать</button>
+          <div class="board-header" style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px;">
+            <div>
+              <h2 style="margin:0 0 4px;font-size:1.5rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;"><span style="color:var(--accent);">📌</span> Доска объявлений</h2>
+              <p style="margin:0;font-size:14px;color:var(--text-muted);">Важные новости и обновления</p>
             </div>
+            <button type="button" class="btn-primary" id="announcement-create-btn" style="flex-shrink:0;">Создать объявление</button>
           </div>
+          <div class="board-tabs" style="display:flex;gap:8px;margin-bottom:16px;">
+            <button type="button" class="board-tab active" data-filter="">Все</button>
+            <button type="button" class="board-tab" data-filter="important">Важные</button>
+            <button type="button" class="board-tab" data-filter="pinned">Закреплённые</button>
+          </div>
+          <div id="announcements-list" style="display:flex;flex-direction:column;gap:16px;"></div>
 
-          <!-- Опросы -->
-          <h3 style="margin:0 0 12px;font-size:14px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.04em;">Опросы</h3>
-          <div class="card" style="margin-bottom:20px;">
-            <div id="polls-list"></div>
-            <div id="poll-create-wrap" style="border-top:1px solid var(--border-subtle);padding-top:16px;margin-top:16px;">
-              <input type="text" id="poll-question" placeholder="Вопрос опроса" style="width:100%;max-width:400px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);margin-bottom:8px;display:block;" />
-              <div id="poll-options-wrap" style="margin-bottom:8px;">
-                <input type="text" class="poll-option-input" placeholder="Вариант 1" data-n="1" style="width:100%;max-width:350px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);margin-bottom:6px;display:block;" />
-                <input type="text" class="poll-option-input" placeholder="Вариант 2" data-n="2" style="width:100%;max-width:350px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);margin-bottom:6px;display:block;" />
+          <!-- Модальное окно: создать объявление -->
+          <div id="announcement-modal" class="modal hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;">
+            <div class="card" style="max-width:520px;width:100%;max-height:90vh;overflow:auto;">
+              <h3 style="margin:0 0 16px;">Новое объявление</h3>
+              <input type="text" id="announcement-title" placeholder="Заголовок" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);margin-bottom:10px;" />
+              <textarea id="announcement-content" placeholder="Текст объявления" rows="4" style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);margin-bottom:10px;resize:vertical;"></textarea>
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:14px;"><input type="checkbox" id="announcement-is-important" /> Важное</label>
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:14px;"><input type="checkbox" id="announcement-is-pinned" /> Закрепить</label>
+              <label style="font-size:13px;color:var(--text-muted);margin-bottom:4px;display:block;">Категория (тег)</label>
+              <select id="announcement-tag" style="width:100%;max-width:200px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);margin-bottom:16px;">
+                <option value="">— не выбрано</option>
+                <option value="Важное">Важное</option>
+                <option value="Техническое">Техническое</option>
+                <option value="HR">HR</option>
+              </select>
+              <div style="display:flex;gap:8px;">
+                <button type="button" class="btn-primary" id="announcement-submit">Опубликовать</button>
+                <button type="button" class="btn-secondary" id="announcement-modal-close">Отмена</button>
               </div>
-              <button type="button" class="btn-secondary" id="poll-add-option" style="margin-bottom:8px;">+ Добавить вариант</button>
-              <button type="button" class="btn-primary" id="poll-submit">Создать опрос</button>
             </div>
           </div>
         </div>
@@ -1091,7 +1110,7 @@
     if (name === 'tickets') loadTickets();
     if (name === 'tasks') loadTasks();
     if (name === 'chat') loadChat();
-    if (name === 'dashboard') { loadOnline(); loadAnnouncements(); loadPolls(); startOnlineRefresh(); }
+    if (name === 'dashboard') { loadOnline(); loadAnnouncements(); startOnlineRefresh(); }
     if (name === 'profile') loadProfile();
     if (name === 'users') loadUsersAdmin();
     loadNotificationCount();
@@ -1140,79 +1159,77 @@
       avatarsEl.innerHTML = '';
     }
   }
+  var boardFilter = '';
   async function loadAnnouncements() {
     var listEl = document.getElementById('announcements-list');
     if (!listEl) return;
+    var query = boardFilter ? '?filter=' + encodeURIComponent(boardFilter) : '';
     try {
-      var list = await api('/board/announcements');
+      var list = await api('/board/announcements' + query);
       if (!list.length) { listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;margin:0;">Пока нет объявлений.</p>'; return; }
       listEl.innerHTML = list.map(function(a){
         var author = (a.author && a.author.full_name) ? escapeHtml(a.author.full_name) : '—';
         var date = a.created_at ? formatDate(a.created_at) : '';
-        return '<div class="announcement-item" style="padding:12px 0;border-bottom:1px solid var(--border-subtle);"><div style="font-weight:600;margin-bottom:4px;">'+escapeHtml(a.title)+'</div><div style="font-size:14px;color:var(--text);white-space:pre-wrap;">'+escapeHtml(a.content)+'</div><div style="font-size:12px;color:var(--text-muted);margin-top:6px;">'+author+' · '+date+'</div></div>';
+        var tagLabel = (a.tag && a.tag.trim()) ? a.tag.trim() : (a.is_important ? 'Важное' : null);
+        var tagClass = 'board-tag';
+        if (tagLabel === 'Важное') tagClass += ' board-tag-important';
+        else if (tagLabel === 'Техническое') tagClass += ' board-tag-tech';
+        else tagClass += ' board-tag-default';
+        var tagHtml = tagLabel ? '<span class="'+tagClass+'">'+escapeHtml(tagLabel)+'</span>' : '';
+        var pinIcon = (a.is_pinned ? '📌 ' : '');
+        return '<div class="card announcement-card" data-id="'+a.id+'" style="padding:18px 20px;">'+
+          '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;">'+
+            '<div style="font-weight:700;font-size:1.05rem;color:var(--text);">'+pinIcon+escapeHtml(a.title)+'</div>'+
+            (tagHtml ? '<div>'+tagHtml+'</div>' : '')+
+          '</div>'+
+          '<div style="font-size:14px;color:var(--text);white-space:pre-wrap;line-height:1.5;margin-bottom:12px;">'+escapeHtml(a.content)+'</div>'+
+          '<div style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;">📅 '+date+' · '+author+'</div>'+
+          '<div class="announcement-comments-wrap" data-ann-id="'+a.id+'" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-subtle);"></div>'+
+          '<div style="margin-top:10px;"><input type="text" class="announcement-comment-input" placeholder="Написать комментарий..." data-ann-id="'+a.id+'" style="width:100%;max-width:400px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:14px;" /><button type="button" class="btn-secondary announcement-comment-btn" data-ann-id="'+a.id+'" style="margin-left:8px;margin-top:6px;">Отправить</button></div>'+
+        '</div>';
       }).join('');
+      listEl.querySelectorAll('.announcement-card').forEach(function(card){
+        var id = parseInt(card.getAttribute('data-id'), 10);
+        loadAnnouncementComments(id);
+      });
+      listEl.querySelectorAll('.announcement-comment-btn').forEach(function(btn){
+        btn.addEventListener('click', function(){ var id = parseInt(btn.getAttribute('data-ann-id'), 10); var wrap = btn.closest('.announcement-card'); var inp = wrap.querySelector('.announcement-comment-input'); var text = inp && inp.value.trim(); if (!text) return; api('/board/announcements/'+id+'/comments', { method: 'POST', body: JSON.stringify({ content: text }) }).then(function(){ inp.value = ''; loadAnnouncementComments(id); }).catch(function(e){ alert(e.message); }); });
+      });
     } catch (_) { listEl.innerHTML = '<p style="color:var(--err);">Не удалось загрузить объявления.</p>'; }
   }
-  async function loadPolls() {
-    var listEl = document.getElementById('polls-list');
-    if (!listEl) return;
+  async function loadAnnouncementComments(annId) {
+    var wrap = document.querySelector('.announcement-comments-wrap[data-ann-id="'+annId+'"]');
+    if (!wrap) return;
     try {
-      var list = await api('/board/polls');
-      if (!list.length) { listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;margin:0;">Пока нет опросов.</p>'; return; }
-      listEl.innerHTML = list.map(function(p){
-        var total = p.options.reduce(function(s, o){ return s + (o.votes_count || 0); }, 0);
-        var optsHtml = p.options.map(function(o){
-          var pct = total > 0 ? Math.round((o.votes_count / total) * 100) : 0;
-          var mine = p.my_vote_option_id === o.id ? ' (ваш выбор)' : '';
-          return '<div style="margin-bottom:6px;"><label style="display:flex;align-items:center;gap:8px;cursor:pointer;"><input type="radio" name="poll-'+p.id+'" value="'+o.id+'" '+(p.my_vote_option_id === o.id ? 'checked' : '')+' '+(p.closed_at ? 'disabled' : '')+' /> <span>'+escapeHtml(o.text)+'</span> <span style="color:var(--text-muted);font-size:12px;">'+o.votes_count+' ('+pct+'%)'+mine+'</span></label><div style="height:4px;background:var(--border-subtle);border-radius:2px;margin-top:2px;"><div style="height:100%;width:'+pct+'%;background:var(--accent);border-radius:2px;"></div></div></div>';
-        }).join('');
-        var voteBtn = p.closed_at ? '' : '<button type="button" class="btn-secondary poll-vote-btn" data-poll-id="'+p.id+'" style="margin-top:8px;">Голосовать</button>';
-        return '<div class="poll-item card" style="margin-bottom:16px;padding:14px;"><div style="font-weight:600;margin-bottom:10px;">'+escapeHtml(p.question)+'</div><div class="poll-options" data-poll-id="'+p.id+'">'+optsHtml+'</div>'+voteBtn+'</div>';
-      }).join('');
-      listEl.querySelectorAll('.poll-vote-btn').forEach(function(btn){
-        btn.addEventListener('click', function(){
-          var pollId = parseInt(btn.getAttribute('data-poll-id'), 10);
-          var opts = document.querySelectorAll('.poll-options[data-poll-id="'+pollId+'"] input[type="radio"]:checked');
-          var optionId = opts.length ? parseInt(opts[0].value, 10) : null;
-          if (!optionId) { alert('Выберите вариант'); return; }
-          api('/board/polls/'+pollId+'/vote', { method: 'POST', body: JSON.stringify({ option_id: optionId }) }).then(function(){ loadPolls(); }).catch(function(e){ alert(e.message); });
-        });
-      });
-    } catch (_) { listEl.innerHTML = '<p style="color:var(--err);">Не удалось загрузить опросы.</p>'; }
+      var list = await api('/board/announcements/'+annId+'/comments');
+      wrap.innerHTML = list.length ? '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Комментарии ('+list.length+'):</div>' + list.map(function(c){
+        var author = (c.author && c.author.full_name) ? escapeHtml(c.author.full_name) : '—';
+        var date = c.created_at ? formatDate(c.created_at) : '';
+        return '<div class="announcement-comment" style="padding:8px 0;border-bottom:1px solid var(--border-subtle);"><div style="font-size:13px;color:var(--text);">'+escapeHtml(c.content)+'</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px;">'+author+' · '+date+'</div></div>';
+      }).join('') : '';
+    } catch (_) { wrap.innerHTML = ''; }
   }
+  document.querySelectorAll('.board-tab').forEach(function(tab){
+    tab.addEventListener('click', function(){ boardFilter = tab.getAttribute('data-filter') || ''; document.querySelectorAll('.board-tab').forEach(function(t){ t.classList.remove('active'); }); tab.classList.add('active'); loadAnnouncements(); });
+  });
+  document.getElementById('announcement-create-btn').addEventListener('click', function(){ document.getElementById('announcement-modal').classList.remove('hidden'); });
+  document.getElementById('announcement-modal-close').addEventListener('click', function(){ document.getElementById('announcement-modal').classList.add('hidden'); });
   document.getElementById('announcement-submit').addEventListener('click', function(){
     var title = document.getElementById('announcement-title').value.trim();
     var content = document.getElementById('announcement-content').value.trim();
+    var isImportant = document.getElementById('announcement-is-important').checked;
+    var isPinned = document.getElementById('announcement-is-pinned').checked;
+    var tagEl = document.getElementById('announcement-tag');
+    var tag = tagEl && tagEl.value ? tagEl.value.trim() : null;
     if (!title || !content) { alert('Заполните заголовок и текст'); return; }
-    api('/board/announcements', { method: 'POST', body: JSON.stringify({ title: title, content: content }) }).then(function(){
+    api('/board/announcements', { method: 'POST', body: JSON.stringify({ title: title, content: content, is_important: isImportant, is_pinned: isPinned, tag: tag }) }).then(function(){
       document.getElementById('announcement-title').value = '';
       document.getElementById('announcement-content').value = '';
+      document.getElementById('announcement-is-important').checked = false;
+      document.getElementById('announcement-is-pinned').checked = false;
+      if (tagEl) tagEl.value = '';
+      document.getElementById('announcement-modal').classList.add('hidden');
       loadAnnouncements();
-    }).catch(function(e){ alert(e.message); });
-  });
-  var pollOptionN = 2;
-  document.getElementById('poll-add-option').addEventListener('click', function(){
-    pollOptionN++;
-    var wrap = document.getElementById('poll-options-wrap');
-    var inp = document.createElement('input');
-    inp.type = 'text';
-    inp.className = 'poll-option-input';
-    inp.placeholder = 'Вариант ' + pollOptionN;
-    inp.setAttribute('data-n', String(pollOptionN));
-    inp.style.cssText = 'width:100%;max-width:350px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);margin-bottom:6px;display:block;';
-    wrap.appendChild(inp);
-  });
-  document.getElementById('poll-submit').addEventListener('click', function(){
-    var question = document.getElementById('poll-question').value.trim();
-    var inputs = document.querySelectorAll('.poll-option-input');
-    var options = [];
-    inputs.forEach(function(inp){ var t = inp.value.trim(); if (t) options.push({ text: t }); });
-    if (!question) { alert('Введите вопрос'); return; }
-    if (options.length < 2) { alert('Нужно минимум 2 варианта ответа'); return; }
-    api('/board/polls', { method: 'POST', body: JSON.stringify({ question: question, options: options }) }).then(function(){
-      document.getElementById('poll-question').value = '';
-      inputs.forEach(function(inp){ inp.value = ''; });
-      loadPolls();
     }).catch(function(e){ alert(e.message); });
   });
   async function loadUsersAdmin() {

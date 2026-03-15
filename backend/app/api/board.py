@@ -1,12 +1,18 @@
 """Доска объявлений и опросы (главная страница)."""
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
-from app.models import Announcement, Poll, PollOption, PollVote, User
-from app.schemas.announcement import AnnouncementCreate, AnnouncementResponse, AnnouncementUpdate
+from app.models import Announcement, AnnouncementComment, Poll, PollOption, PollVote, User
+from app.schemas.announcement import (
+    AnnouncementCommentCreate,
+    AnnouncementCommentResponse,
+    AnnouncementCreate,
+    AnnouncementResponse,
+    AnnouncementUpdate,
+)
 from app.schemas.poll import PollCreate, PollResponse, PollVoteCreate
 
 from .deps import get_current_user, require_role
@@ -18,32 +24,36 @@ def _author_brief(user: User) -> dict:
     return {"id": user.id, "full_name": user.full_name}
 
 
+def _announcement_response(a) -> AnnouncementResponse:
+    return AnnouncementResponse(
+        id=a.id,
+        title=a.title,
+        content=a.content,
+        author_id=a.author_id,
+        author=_author_brief(a.author) if a.author else None,
+        created_at=a.created_at,
+        is_pinned=getattr(a, "is_pinned", False),
+        is_important=getattr(a, "is_important", False),
+        tag=getattr(a, "tag", None),
+    )
+
+
 # ——— Объявления ———
 
 @router.get("/announcements", response_model=list[AnnouncementResponse])
 def list_announcements(
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
+    filter: str | None = Query(None, description="all | important | pinned"),
 ):
-    """Список объявлений (последние сверху)."""
-    items = (
-        db.query(Announcement)
-        .options(joinedload(Announcement.author))
-        .order_by(Announcement.created_at.desc())
-        .limit(100)
-        .all()
-    )
-    return [
-        AnnouncementResponse(
-            id=a.id,
-            title=a.title,
-            content=a.content,
-            author_id=a.author_id,
-            author=_author_brief(a.author) if a.author else None,
-            created_at=a.created_at,
-        )
-        for a in items
-    ]
+    """Список объявлений. filter: important — только важные, pinned — только закреплённые."""
+    q = db.query(Announcement).options(joinedload(Announcement.author))
+    if filter == "important":
+        q = q.filter(Announcement.is_important == True)
+    elif filter == "pinned":
+        q = q.filter(Announcement.is_pinned == True)
+    items = q.order_by(Announcement.is_pinned.desc(), Announcement.created_at.desc()).limit(100).all()
+    return [_announcement_response(a) for a in items]
 
 
 @router.post("/announcements", response_model=AnnouncementResponse)
@@ -57,6 +67,9 @@ def create_announcement(
         title=data.title.strip(),
         content=data.content.strip(),
         author_id=user.id,
+        is_pinned=getattr(data, "is_pinned", False),
+        is_important=getattr(data, "is_important", False),
+        tag=(data.tag.strip() if data.tag else None) if getattr(data, "tag", None) else None,
     )
     db.add(a)
     db.commit()
@@ -68,6 +81,9 @@ def create_announcement(
         author_id=a.author_id,
         author={"id": user.id, "full_name": user.full_name},
         created_at=a.created_at,
+        is_pinned=a.is_pinned,
+        is_important=a.is_important,
+        tag=a.tag,
     )
 
 
@@ -90,17 +106,16 @@ def update_announcement(
             a.title = v.strip()
         elif k == "content" and v is not None:
             a.content = v.strip()
+        elif k == "is_pinned":
+            a.is_pinned = v
+        elif k == "is_important":
+            a.is_important = v
+        elif k == "tag":
+            a.tag = v.strip() if v else None
     db.commit()
     db.refresh(a)
     a = db.query(Announcement).options(joinedload(Announcement.author)).get(a.id)
-    return AnnouncementResponse(
-        id=a.id,
-        title=a.title,
-        content=a.content,
-        author_id=a.author_id,
-        author=_author_brief(a.author) if a.author else None,
-        created_at=a.created_at,
-    )
+    return _announcement_response(a)
 
 
 @router.delete("/announcements/{announcement_id}")
@@ -118,6 +133,66 @@ def delete_announcement(
     db.delete(a)
     db.commit()
     return {"detail": "ok"}
+
+
+# ——— Комментарии к объявлениям ———
+
+@router.get("/announcements/{announcement_id}/comments", response_model=list[AnnouncementCommentResponse])
+def list_announcement_comments(
+    announcement_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    """Комментарии к объявлению."""
+    a = db.query(Announcement).filter(Announcement.id == announcement_id).first()
+    if not a:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Объявление не найдено")
+    comments = (
+        db.query(AnnouncementComment)
+        .options(joinedload(AnnouncementComment.author))
+        .filter(AnnouncementComment.announcement_id == announcement_id)
+        .order_by(AnnouncementComment.created_at.asc())
+        .all()
+    )
+    return [
+        AnnouncementCommentResponse(
+            id=c.id,
+            announcement_id=c.announcement_id,
+            author_id=c.author_id,
+            author=_author_brief(c.author) if c.author else None,
+            content=c.content,
+            created_at=c.created_at,
+        )
+        for c in comments
+    ]
+
+
+@router.post("/announcements/{announcement_id}/comments", response_model=AnnouncementCommentResponse)
+def create_announcement_comment(
+    announcement_id: int,
+    data: AnnouncementCommentCreate,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    """Добавить комментарий к объявлению."""
+    a = db.query(Announcement).filter(Announcement.id == announcement_id).first()
+    if not a:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Объявление не найдено")
+    content = data.content.strip()
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Текст комментария не может быть пустым")
+    c = AnnouncementComment(announcement_id=announcement_id, author_id=user.id, content=content)
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return AnnouncementCommentResponse(
+        id=c.id,
+        announcement_id=c.announcement_id,
+        author_id=c.author_id,
+        author={"id": user.id, "full_name": user.full_name},
+        content=c.content,
+        created_at=c.created_at,
+    )
 
 
 # ——— Опросы ———
