@@ -61,6 +61,12 @@
     }
     a { text-decoration: none; color: inherit; }
 
+    .view { opacity: 0; transform: translateY(10px); }
+    .view.view-visible { animation: viewIn 0.35s ease-out forwards; }
+    @keyframes viewIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
     .layout-root { display: flex; min-height: 100vh; }
     .sidebar {
       width: 240px;
@@ -291,6 +297,43 @@
     .sidebar-hamburger:hover { background: var(--border-subtle); }
     .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 499; backdrop-filter: blur(2px); }
     .sidebar-overlay.open { display: block; }
+    [data-tooltip] { position: relative; }
+    [data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: calc(100% + 8px);
+      padding: 6px 10px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      box-shadow: var(--shadow);
+      z-index: 100;
+    }
+    [data-tooltip]:hover::after { opacity: 1; }
+    .skeleton-wrap { padding: 0; margin: 16px 0 0; }
+    .skeleton-line {
+      height: 16px;
+      border-radius: 8px;
+      background: linear-gradient(90deg, var(--border-subtle) 25%, var(--border) 50%, var(--border-subtle) 75%);
+      background-size: 200% 100%;
+      animation: skeleton 1s ease-in-out infinite;
+    }
+    .skeleton-line.short { width: 40%; }
+    .skeleton-line.medium { width: 70%; }
+    @keyframes skeleton { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    .skeleton-table { width: 100%; border-collapse: collapse; margin-top: 0; }
+    .skeleton-table th, .skeleton-table td { padding: 12px 14px; border-bottom: 1px solid var(--border-subtle); }
+    .skeleton-table .skeleton-line { height: 14px; }
+    .skeleton-kanban { display: grid; gap: 16px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 20px; }
+    .skeleton-kanban .skeleton-column { background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--border-subtle); padding: 12px; min-height: 200px; }
+    .skeleton-kanban .skeleton-column .skeleton-line { margin-bottom: 10px; }
     .topbar-bell {
       position: relative;
       background: none;
@@ -413,11 +456,23 @@
       .sidebar-logo { margin-bottom: 24px; }
       .sidebar-nav { flex-direction: column; }
       .kanban { grid-template-columns: 1fr 1fr; }
+      .skeleton-kanban { grid-template-columns: 1fr 1fr; }
       .chat-layout { grid-template-columns: 1fr; height: 55vh; }
-      .table { font-size: 13px; }
+      .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 16px; }
+      .table { font-size: 13px; min-width: 640px; }
       .table th, .table td { padding: 10px 12px; }
       .modal-box { width: 100%; max-height: 85vh; padding: 20px; }
       .card-row { flex-direction: column; }
+      .topbar { flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
+      .topbar-title { width: 100%; order: -1; font-size: 1rem; }
+    }
+    @media (max-width: 600px) {
+      .kanban { grid-template-columns: 1fr; }
+      .skeleton-kanban { grid-template-columns: 1fr; }
+      .layout-content { padding: 14px 16px 24px; }
+      .card { padding: 14px 16px; }
+      .topbar-bell, .theme-toggle, .btn-logout { padding: 6px 10px; font-size: 1rem; }
+      #user-name { display: none; }
     }
   </style>
 </head>
@@ -462,17 +517,17 @@
     </aside>
     <div class="layout-main">
       <header class="topbar" style="position:relative">
-        <button type="button" class="sidebar-hamburger" id="sidebar-hamburger" title="Меню">☰</button>
+        <button type="button" class="sidebar-hamburger" id="sidebar-hamburger" data-tooltip="Меню" title="Меню">☰</button>
         <div class="topbar-title" id="page-title">Дашборд</div>
         <div class="topbar-spacer"></div>
-        <button type="button" class="topbar-bell" id="notifications-bell" title="Уведомления">🔔<span class="badge" id="notifications-badge" style="display:none">0</span></button>
+        <button type="button" class="topbar-bell" id="notifications-bell" data-tooltip="Уведомления" title="Уведомления">🔔<span class="badge" id="notifications-badge" style="display:none">0</span></button>
         <div id="notifications-dropdown" class="notifications-dropdown" onclick="event.stopPropagation()">
           <div id="notifications-list"></div>
           <div class="n-footer"><button type="button" id="notifications-read-all">Прочитать все</button></div>
         </div>
-        <button type="button" class="theme-toggle" id="theme-toggle" title="Светлая/тёмная тема">🌓</button>
+        <button type="button" class="theme-toggle" id="theme-toggle" data-tooltip="Светлая / тёмная тема" title="Светлая / тёмная тема">🌓</button>
         <span id="user-name"></span>
-        <button type="button" class="btn-logout" id="logout-btn">Выйти</button>
+        <button type="button" class="btn-logout" id="logout-btn" data-tooltip="Выйти из аккаунта" title="Выйти">Выйти</button>
       </header>
       <main class="layout-content">
         <div id="view-dashboard" class="view">
@@ -525,21 +580,23 @@
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <input type="text" id="tickets-search" placeholder="Поиск по названию или описанию..." style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);width:220px;max-width:100%;" />
                 <label style="margin:0;font-size:13px;">Статус:</label>
-                <select id="tickets-filter-status" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);">
+                <select id="tickets-filter-status" data-tooltip="Фильтр по статусу заявки" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);">
                   <option value="">Все</option>
                   <option value="new">Новая</option>
                   <option value="in_progress">В работе</option>
                   <option value="done">Выполнена</option>
                   <option value="canceled">Отменена</option>
                 </select>
-                <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-size:13px;cursor:pointer;"><input type="checkbox" id="tickets-due-week" /> На эту неделю</label>
-                <input type="text" id="tickets-filter-tag" placeholder="Тег..." style="padding:6px 10px;width:120px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);" />
-                <button type="button" class="btn-secondary" id="tickets-export-btn">Экспорт в CSV</button>
+                <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-size:13px;cursor:pointer;" data-tooltip="Только заявки со сроком на эту неделю"><input type="checkbox" id="tickets-due-week" /> На эту неделю</label>
+                <input type="text" id="tickets-filter-tag" data-tooltip="Фильтр по тегу" placeholder="Тег..." style="padding:6px 10px;width:120px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);" />
+                <button type="button" class="btn-secondary" id="tickets-export-btn" data-tooltip="Скачать список заявок в CSV">Экспорт в CSV</button>
                 <button type="button" class="btn-primary" id="ticket-create-btn">Создать заявку</button>
               </div>
             </div>
-            <div id="tickets-loading" class="msg">Загрузка...</div>
-            <table class="table" id="tickets-table" style="display:none"></table>
+            <div id="tickets-loading" style="display:none;"></div>
+            <div class="table-wrap">
+              <table class="table" id="tickets-table" style="display:none"></table>
+            </div>
             <div id="tickets-more-wrap" style="display:none;margin-top:8px;">
               <button type="button" class="btn-secondary" id="tickets-load-more">Загрузить ещё</button>
             </div>
@@ -549,10 +606,10 @@
           <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
               <h2 style="margin:0;">Задачи</h2>
-              <input type="text" id="tasks-search" placeholder="Поиск по названию или описанию..." style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);width:220px;max-width:100%;" />
-              <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-size:13px;cursor:pointer;"><input type="checkbox" id="tasks-due-week" /> На эту неделю</label>
+              <input type="text" id="tasks-search" data-tooltip="Поиск по названию или описанию задачи" placeholder="Поиск по названию или описанию..." style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);width:220px;max-width:100%;" />
+              <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-size:13px;cursor:pointer;" data-tooltip="Только задачи со сроком на эту неделю"><input type="checkbox" id="tasks-due-week" /> На эту неделю</label>
             </div>
-            <div id="tasks-loading" class="msg">Загрузка...</div>
+            <div id="tasks-loading" style="display:none;"></div>
             <div class="kanban" id="kanban-root" style="display:none"></div>
           </div>
         </div>
@@ -569,7 +626,7 @@
               <form class="chat-input-row" id="chat-form">
                 <input type="file" id="chat-file" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" style="display:none" />
                 <input id="chat-input" placeholder="Сообщение..." autocomplete="off" />
-                <button type="button" id="chat-file-btn" title="Прикрепить файл">📎</button>
+                <button type="button" id="chat-file-btn" data-tooltip="Прикрепить файл" title="Прикрепить файл">📎</button>
                 <button type="submit">Отправить</button>
               </form>
             </section>
@@ -578,8 +635,9 @@
         <div id="view-users" class="view" style="display:none">
           <div class="card">
             <h2 style="margin:0 0 16px;">Пользователи</h2>
-            <div id="users-loading" class="msg">Загрузка...</div>
-            <table class="table" id="users-table" style="display:none">
+            <div id="users-loading" style="display:none;"></div>
+            <div class="table-wrap">
+              <table class="table" id="users-table" style="display:none">
               <thead><tr><th>Email</th><th>Имя</th><th>Роль</th><th>Активен</th><th>Действия</th></tr></thead>
               <tbody id="users-tbody"></tbody>
             </table>
@@ -937,7 +995,10 @@
   function switchView(name) {
     ['dashboard','tickets','tasks','chat','users'].forEach(v => {
       const el = document.getElementById('view-' + v);
-      if (el) el.style.display = v === name ? 'block' : 'none';
+      if (el) {
+        el.style.display = v === name ? 'block' : 'none';
+        el.classList.toggle('view-visible', v === name);
+      }
     });
     document.querySelectorAll('.sidebar-link').forEach(el => {
       el.classList.toggle('active', el.getAttribute('data-view') === name);
@@ -1011,11 +1072,16 @@
     var tbody = document.getElementById('users-tbody');
     if (!loading || !table || !tbody) return;
     loading.style.display = 'block';
+    loading.className = 'skeleton-wrap';
+    loading.innerHTML = '<table class="table skeleton-table"><thead><tr><th>Email</th><th>Имя</th><th>Роль</th><th>Активен</th><th>Действия</th></tr></thead><tbody><tr><td><div class="skeleton-line medium"></div></td><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line short"></div></td></tr><tr><td><div class="skeleton-line medium"></div></td><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line short"></div></td></tr><tr><td><div class="skeleton-line medium"></div></td><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line short"></div></td></tr></tbody></table>';
+    var tableWrap = table.parentElement && table.parentElement.classList.contains('table-wrap') ? table.parentElement : null;
     table.style.display = 'none';
+    if (tableWrap) tableWrap.style.display = 'none';
     try {
       var list = await api('/users/admin');
       loading.style.display = 'none';
       table.style.display = 'table';
+      if (tableWrap) tableWrap.style.display = 'block';
       var roles = ['operator', 'manager', 'chief', 'admin'];
       tbody.innerHTML = list.map(function(u){
         return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(u.full_name)+'</td><td><select class="user-role-select" data-id="'+u.id+'">'+roles.map(function(r){ return '<option value="'+r+'"'+(u.role===r?' selected':'')+'>'+r+'</option>'; }).join('')+'</select></td><td><input type="checkbox" class="user-active-cb" data-id="'+u.id+'" '+(u.is_active?'checked':'')+' /></td><td><button type="button" class="btn-secondary user-reset-btn" data-id="'+u.id+'">Сброс пароля</button></td></tr>';
@@ -1031,8 +1097,9 @@
       });
     } catch (err) {
       loading.style.display = 'block';
-      loading.textContent = err.message;
       loading.className = 'msg err';
+      loading.innerHTML = '';
+      loading.textContent = err.message;
     }
   }
   async function loadAttention() {
@@ -1077,8 +1144,9 @@
     if (!append) loadTickets.offset = 0;
     var offset = loadTickets.offset || 0;
     loading.style.display = 'block';
-    loading.textContent = append ? 'Загрузка...' : 'Загрузка...';
-    if (!append) { wrap.style.display = 'none'; }
+    loading.className = 'skeleton-wrap';
+    loading.innerHTML = getSkeletonTableHtml(5);
+    if (!append) { wrap.style.display = 'none'; if (wrap.parentElement && wrap.parentElement.classList.contains('table-wrap')) wrap.parentElement.style.display = 'none'; }
     var params = [];
     if (statusFilter) params.push('status=' + encodeURIComponent(statusFilter));
     if (searchQ) params.push('q=' + encodeURIComponent(searchQ));
@@ -1095,6 +1163,7 @@
       loadTickets.offset = offset + list.length;
       loading.style.display = 'none';
       wrap.style.display = 'table';
+      if (wrap.parentElement && wrap.parentElement.classList.contains('table-wrap')) wrap.parentElement.style.display = 'block';
       var tbody = wrap.querySelector('tbody');
       if (!tbody) wrap.innerHTML = '<thead><tr><th>ID</th><th>Название</th><th>Статус</th><th>Приоритет</th><th>АЗС</th><th>Срок</th><th>Создана</th></tr></thead><tbody></tbody>';
       tbody = wrap.querySelector('tbody');
@@ -1105,6 +1174,7 @@
       if (moreWrap) moreWrap.style.display = list.length >= 30 ? 'block' : 'none';
     } catch (err) {
       loading.className = 'msg err';
+      loading.innerHTML = '';
       loading.textContent = err.message;
       loading.style.display = 'block';
       if (moreWrap) moreWrap.style.display = 'none';
@@ -1291,6 +1361,8 @@
     if (dueWeek) params.push('due_week=true');
     var query = params.length ? '?' + params.join('&') : '';
     loading.style.display = 'block';
+    loading.className = 'skeleton-wrap';
+    loading.innerHTML = getSkeletonKanbanHtml();
     root.style.display = 'none';
     try {
       const list = await api('/tasks' + query);
@@ -1312,6 +1384,7 @@
       });
     } catch (err) {
       loading.className = 'msg err';
+      loading.innerHTML = '';
       loading.textContent = err.message;
       loading.style.display = 'block';
     }
@@ -1452,6 +1525,17 @@
     const today = new Date();
     today.setHours(0,0,0,0);
     return d.getTime() < today.getTime();
+  }
+  function getSkeletonTableHtml(rows) {
+    var r = '';
+    for (var i = 0; i < (rows || 5); i++) {
+      r += '<tr><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line medium"></div></td><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line short"></div></td><td><div class="skeleton-line short"></div></td></tr>';
+    }
+    return '<table class="table skeleton-table"><thead><tr><th>ID</th><th>Название</th><th>Статус</th><th>Приоритет</th><th>АЗС</th><th>Срок</th><th>Создана</th></tr></thead><tbody>' + r + '</tbody></table>';
+  }
+  function getSkeletonKanbanHtml() {
+    var cols = '<div class="skeleton-column"><div class="skeleton-line short" style="margin-bottom:12px;"></div><div class="skeleton-line medium"></div><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div>';
+    return '<div class="skeleton-kanban">' + cols + cols + cols + cols + '</div>';
   }
 })();
 </script>
