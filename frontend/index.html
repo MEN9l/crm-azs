@@ -854,8 +854,12 @@
     loadNotificationCount();
     if (notificationPollInterval) clearInterval(notificationPollInterval);
     notificationPollInterval = setInterval(loadNotificationCount, 45000);
-    // Подключаем WebSocket к общему чату сразу после входа, чтобы сообщения приходили в оба окна даже если вкладка «Чат» не открыта
-    if (typeof connectChatWs === 'function') connectChatWs(currentChatId || 1);
+    // Подключаем WebSocket к общему чату сразу после входа (не ломаем страницу при ошибке)
+    try {
+      if (typeof connectChatWs === 'function') connectChatWs(currentChatId || 1);
+    } catch (e) { console.warn('WebSocket chat:', e); }
+    // Загружаем данные дашборда при первом входе
+    if (typeof switchView === 'function') switchView('dashboard');
   }
 
   loadNotificationCount.prevUnread = undefined;
@@ -986,8 +990,6 @@
     }).catch(function(err){ document.getElementById('reset-msg').textContent = err.message; document.getElementById('reset-msg').className = 'msg err'; document.getElementById('reset-msg').style.display = 'block'; });
   });
   if (resetToken) { urlParams.delete('reset'); }
-
-  if (getToken()) showMain(); else showLogin();
 
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -1580,6 +1582,8 @@
     var cols = '<div class="skeleton-column"><div class="skeleton-line short" style="margin-bottom:12px;"></div><div class="skeleton-line medium"></div><div class="skeleton-line medium"></div><div class="skeleton-line short"></div></div>';
     return '<div class="skeleton-kanban">' + cols + cols + cols + cols + '</div>';
   }
+
+  if (getToken()) showMain(); else showLogin();
 })();
 </script>
 </body>
