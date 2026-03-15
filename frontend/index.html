@@ -786,6 +786,26 @@
     try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); } catch { return null; }
   }
 
+  function playSound(type) {
+    try {
+      var ctx = window._soundCtx || (window._soundCtx = new (window.AudioContext || window.webkitAudioContext)());
+      if (ctx.state === 'suspended') ctx.resume();
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      var freq = 520, dur = 0.08, vol = 0.12;
+      if (type === 'receive') { freq = 420; dur = 0.12; }
+      else if (type === 'notification') { freq = 660; dur = 0.1; vol = 0.14; }
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(vol, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + dur);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + dur);
+    } catch (_) {}
+  }
+
   function headers() {
     const t = getToken();
     return {
@@ -834,12 +854,15 @@
     notificationPollInterval = setInterval(loadNotificationCount, 45000);
   }
 
+  loadNotificationCount.prevUnread = undefined;
   async function loadNotificationCount() {
     if (!getToken()) return;
     try {
       const list = await api('/notifications?unread_only=true');
       const badge = document.getElementById('notifications-badge');
       if (list.length > 0) { badge.textContent = list.length > 99 ? '99+' : list.length; badge.style.display = 'flex'; } else { badge.style.display = 'none'; }
+      if (loadNotificationCount.prevUnread !== undefined && list.length > loadNotificationCount.prevUnread) playSound('notification');
+      loadNotificationCount.prevUnread = list.length;
       if (typeof window !== 'undefined' && window.Notification && window.Notification.permission === 'granted') {
         list.forEach(function(n) {
           if (!desktopNotifyShownIds.has(n.id)) {
@@ -1302,6 +1325,7 @@
       if (document.getElementById('ticket-create-tags')) document.getElementById('ticket-create-tags').value = '';
       loadTickets();
       loadStats();
+      playSound('notification');
     }).catch(function(err){ alert(err.message); });
   });
 
@@ -1404,6 +1428,8 @@
     ws.onmessage = function(ev) {
       try {
         const m = JSON.parse(ev.data);
+        var me = getUser();
+        if (m.sender && me && m.sender.id !== me.id) playSound('receive');
         const messagesEl = document.getElementById('chat-messages');
         const name = (m.sender && m.sender.full_name) ? escapeHtml(m.sender.full_name) + ': ' : '';
         const div = document.createElement('div');
@@ -1489,15 +1515,17 @@
           fd.append('file', file);
           return fetch(API+'/attachments/message/'+msg.id, { method: 'POST', headers: { 'Authorization': 'Bearer '+getToken() }, body: fd }).catch(function() {});
         });
-        Promise.all(uploads).then(function() { input.value = ''; fileInput.value = ''; loadChatMessages(); });
+        Promise.all(uploads).then(function() { input.value = ''; fileInput.value = ''; loadChatMessages(); playSound('send'); });
       }).catch(function(err) { alert(err.message); });
     } else if (chatWs && chatWs.readyState === WebSocket.OPEN) {
       chatWs.send(JSON.stringify({ content: text }));
       input.value = '';
+      playSound('send');
     } else {
       api('/chat/chats/'+currentChatId+'/messages', { method: 'POST', body: JSON.stringify({ content: text }) }).then(function() {
         input.value = '';
         loadChatMessages();
+        playSound('send');
       }).catch(function(err) { alert(err.message); });
     }
   });
