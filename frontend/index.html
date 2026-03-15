@@ -44,6 +44,7 @@
       --shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
     }
     *, *::before, *::after { box-sizing: border-box; }
+    html, body { overflow-x: hidden; }
     body {
       margin: 0;
       font-family: 'Manrope', system-ui, sans-serif;
@@ -67,7 +68,7 @@
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
-    .layout-root { display: flex; min-height: 100vh; }
+    .layout-root { display: flex; min-height: 100vh; overflow-x: hidden; }
     .sidebar {
       width: 240px;
       background: var(--bg-elevated);
@@ -94,7 +95,7 @@
     }
     .sidebar-link:hover { color: var(--text); background: var(--border-subtle); }
     .sidebar-link.active { background: var(--accent-soft); color: var(--accent); }
-    .layout-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .layout-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow-x: hidden; }
     .topbar {
       display: flex;
       align-items: center;
@@ -118,6 +119,7 @@
     .card-label { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.04em; }
     .card-value { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
     .card-small { min-width: 140px; }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .table {
       width: 100%;
       border-collapse: collapse;
@@ -1417,6 +1419,18 @@
   let currentChatId = 1;
   let chatWs = null;
 
+  function appendChatMessage(content, senderName, createdAt) {
+    var messagesEl = document.getElementById('chat-messages');
+    if (!messagesEl) return;
+    var name = senderName ? escapeHtml(senderName) + ': ' : '';
+    var time = createdAt ? formatDate(createdAt) : formatDate(new Date());
+    var div = document.createElement('div');
+    div.className = 'chat-message';
+    div.innerHTML = '<span class="chat-message-content">'+name+escapeHtml(content || '')+'</span><span class="chat-message-time">'+time+'</span>';
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
   function connectChatWs(chatId) {
     if (chatWs) { chatWs.close(); chatWs = null; }
     const token = getToken();
@@ -1427,16 +1441,13 @@
     chatWs = ws;
     ws.onmessage = function(ev) {
       try {
-        const m = JSON.parse(ev.data);
+        const m = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+        var content = m.content != null ? m.content : (m.message != null ? m.message : m.text);
+        if (content == null) content = '';
         var me = getUser();
         if (m.sender && me && m.sender.id !== me.id) playSound('receive');
-        const messagesEl = document.getElementById('chat-messages');
-        const name = (m.sender && m.sender.full_name) ? escapeHtml(m.sender.full_name) + ': ' : '';
-        const div = document.createElement('div');
-        div.className = 'chat-message';
-        div.innerHTML = '<span class="chat-message-content">'+name+escapeHtml(m.content)+'</span><span class="chat-message-time">'+formatDate(m.created_at)+'</span>';
-        messagesEl.appendChild(div);
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+        var senderName = (m.sender && m.sender.full_name) ? m.sender.full_name : '';
+        appendChatMessage(content, senderName, m.created_at);
       } catch (_) {}
     };
     ws.onclose = function() { chatWs = null; };
@@ -1518,6 +1529,8 @@
         Promise.all(uploads).then(function() { input.value = ''; fileInput.value = ''; loadChatMessages(); playSound('send'); });
       }).catch(function(err) { alert(err.message); });
     } else if (chatWs && chatWs.readyState === WebSocket.OPEN) {
+      var me = getUser();
+      appendChatMessage(text, me ? me.full_name : '', new Date());
       chatWs.send(JSON.stringify({ content: text }));
       input.value = '';
       playSound('send');
