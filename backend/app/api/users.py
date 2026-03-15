@@ -106,6 +106,7 @@ def _user_to_brief(u: User) -> UserBrief:
         full_name=u.full_name,
         email=u.email,
         role=u.role,
+        is_office=getattr(u, "is_office", False),
         position=getattr(u, "position", None),
         department=getattr(u, "department", None),
     )

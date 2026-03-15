@@ -1,9 +1,17 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+
+# Дополнительные участники чата (напр. сотрудник офиса добавлен в чат АЗС)
+chat_member_table = Table(
+    "chat_members",
+    Base.metadata,
+    Column("chat_id", ForeignKey("chats.id", ondelete="CASCADE"), primary_key=True),
+    Column("user_id", ForeignKey("users.id", ondelete="CASCADE"), primary_key=True),
+)
 
 
 class Chat(Base):
@@ -20,6 +28,11 @@ class Chat(Base):
     station = relationship("Station")
     ticket = relationship("Ticket")
     task = relationship("Task")
+    extra_members = relationship(
+        "User",
+        secondary=chat_member_table,
+        backref="chats_extra",
+    )
 
 
 class Message(Base):

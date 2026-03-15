@@ -8,9 +8,12 @@ from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 
+from sqlalchemy.orm import joinedload
+
 from app.core.database import SessionLocal
 from app.core.security import decode_token
 from app.models import User, Chat, Message
+from app.models.chat import chat_member_table
 
 
 class ConnectionManager:
@@ -58,6 +61,24 @@ def get_user_from_token(token: str | None) -> User | None:
         db.close()
 
 
+def _user_can_see_chat_ws(db, chat: Chat, user: User) -> bool:
+    if user.role in ("admin", "chief"):
+        return True
+    row = db.execute(
+        chat_member_table.select().where(
+            chat_member_table.c.chat_id == chat.id,
+            chat_member_table.c.user_id == user.id,
+        )
+    ).first()
+    if row:
+        return True
+    if chat.type == "general":
+        return bool(user.is_office)
+    if chat.station_id:
+        return any(s.id == chat.station_id for s in user.stations)
+    return bool(user.is_office)
+
+
 async def handle_ws_chat(websocket: WebSocket, chat_id: int, token: str | None) -> None:
     user = get_user_from_token(token)
     if not user:
@@ -65,9 +86,13 @@ async def handle_ws_chat(websocket: WebSocket, chat_id: int, token: str | None) 
         return
     db = SessionLocal()
     try:
-        chat = db.query(Chat).filter(Chat.id == chat_id).first()
+        user = db.query(User).options(joinedload(User.stations)).filter(User.id == user.id).first()
+        chat = db.query(Chat).options(joinedload(Chat.extra_members)).filter(Chat.id == chat_id).first()
         if not chat:
             await websocket.close(code=4004)
+            return
+        if not _user_can_see_chat_ws(db, chat, user):
+            await websocket.close(code=4003)
             return
     finally:
         db.close()

@@ -33,3 +33,8 @@ class ChatResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ChatMemberResponse(BaseModel):
+    user: UserBrief
+    is_extra: bool  # добавлен вручную (можно убрать из чата)

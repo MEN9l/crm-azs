@@ -25,6 +25,7 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
     role: Mapped[str] = mapped_column(String(50), default="operator")  # operator, manager, chief, admin
+    is_office: Mapped[bool] = mapped_column(Boolean, default=False)  # сотрудник офиса (видит общий чат, может быть добавлен в чаты АЗС)
     position: Mapped[str | None] = mapped_column(String(255), nullable=True)   # должность
     department: Mapped[str | None] = mapped_column(String(255), nullable=True)  # подразделение
     avatar: Mapped[str | None] = mapped_column(String(512), nullable=True)     # путь к аватарке, напр. avatars/1.jpg

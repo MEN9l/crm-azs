@@ -54,6 +54,7 @@ def seed(db: Session) -> None:
         role="admin",
         is_superuser=True,
         is_active=True,
+        is_office=True,
     )
     db.add(admin)
     db.flush()

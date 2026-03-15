@@ -8,6 +8,7 @@ class UserBase(BaseModel):
     email: str
     phone: str | None = None
     role: str = "operator"
+    is_office: bool = False
     position: str | None = None
     department: str | None = None
 
@@ -21,6 +22,7 @@ class UserUpdate(BaseModel):
     phone: str | None = None
     role: str | None = None
     is_active: bool | None = None
+    is_office: bool | None = None
     position: str | None = None
     department: str | None = None
 
@@ -49,6 +51,7 @@ class UserBrief(BaseModel):
     full_name: str
     email: str
     role: str
+    is_office: bool = False
     position: str | None = None
     department: str | None = None
 
