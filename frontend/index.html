@@ -1453,9 +1453,16 @@
         var content = m.content != null ? m.content : (m.message != null ? m.message : m.text);
         if (content == null) content = '';
         var me = getUser();
-        if (m.sender && me && m.sender.id !== me.id) playSound('receive');
         var senderName = (m.sender && m.sender.full_name) ? m.sender.full_name : '';
+        var fromOther = m.sender && me && m.sender.id !== me.id;
+        if (fromOther) playSound('receive');
         appendChatMessage(content, senderName, m.created_at);
+        if (fromOther && typeof window !== 'undefined' && window.Notification && window.Notification.permission === 'granted' && document.hidden) {
+          try {
+            var body = (senderName || 'Сообщение') + ': ' + (content.length > 80 ? content.slice(0, 80) + '…' : content);
+            new window.Notification('CRM АЗС — Чат', { body: body, icon: '/favicon.ico' });
+          } catch (_) {}
+        }
       } catch (_) {}
     };
     ws.onclose = function() {
