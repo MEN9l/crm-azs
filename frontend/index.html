@@ -1200,13 +1200,44 @@
   async function loadAnnouncementComments(annId) {
     var wrap = document.querySelector('.announcement-comments-wrap[data-ann-id="'+annId+'"]');
     if (!wrap) return;
+    var me = getUser();
+    var canManage = me && (me.role === 'admin' || me.role === 'chief');
     try {
       var list = await api('/board/announcements/'+annId+'/comments');
       wrap.innerHTML = list.length ? '<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Комментарии ('+list.length+'):</div>' + list.map(function(c){
         var author = (c.author && c.author.full_name) ? escapeHtml(c.author.full_name) : '—';
         var date = c.created_at ? formatDate(c.created_at) : '';
-        return '<div class="announcement-comment" style="padding:8px 0;border-bottom:1px solid var(--border-subtle);"><div style="font-size:13px;color:var(--text);">'+escapeHtml(c.content)+'</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px;">'+author+' · '+date+'</div></div>';
+        var canEdit = me && (me.id === c.author_id || canManage);
+        var actions = canEdit ? '<span style="margin-left:8px;"><button type="button" class="comment-edit-btn" data-comment-id="'+c.id+'" data-ann-id="'+annId+'">Редактировать</button> <button type="button" class="comment-delete-btn" data-comment-id="'+c.id+'" data-ann-id="'+annId+'">Удалить</button></span>' : '';
+        return '<div class="announcement-comment" data-comment-id="'+c.id+'" data-ann-id="'+annId+'" style="padding:8px 0;border-bottom:1px solid var(--border-subtle);"><div class="comment-content-row" style="font-size:13px;color:var(--text);">'+escapeHtml(c.content)+'</div><div style="font-size:11px;color:var(--text-muted);margin-top:4px;">'+author+' · '+date+actions+'</div></div>';
       }).join('') : '';
+      wrap.querySelectorAll('.comment-edit-btn').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var commentId = parseInt(btn.getAttribute('data-comment-id'), 10);
+          var aId = parseInt(btn.getAttribute('data-ann-id'), 10);
+          var commentEl = wrap.querySelector('.announcement-comment[data-comment-id="'+commentId+'"]');
+          var contentRow = commentEl && commentEl.querySelector('.comment-content-row');
+          if (!contentRow) return;
+          var content = contentRow.textContent || '';
+          var origHtml = contentRow.innerHTML;
+          contentRow.innerHTML = '<input type="text" class="comment-edit-input" style="width:100%;max-width:400px;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);" /><button type="button" class="btn-secondary comment-save-btn" style="margin-left:8px;margin-top:6px;">Сохранить</button><button type="button" class="btn-secondary comment-cancel-btn" style="margin-left:4px;margin-top:6px;">Отмена</button>';
+          var inp = contentRow.querySelector('.comment-edit-input');
+          inp.value = content;
+          inp.focus();
+          var saveBtn = contentRow.querySelector('.comment-save-btn');
+          var cancelBtn = contentRow.querySelector('.comment-cancel-btn');
+          saveBtn.addEventListener('click', function(){ var text = inp.value.trim(); if (!text) return; api('/board/announcements/'+aId+'/comments/'+commentId, { method: 'PATCH', body: JSON.stringify({ content: text }) }).then(function(){ loadAnnouncementComments(aId); }).catch(function(e){ alert(e.message); }); });
+          cancelBtn.addEventListener('click', function(){ contentRow.innerHTML = origHtml; });
+        });
+      });
+      wrap.querySelectorAll('.comment-delete-btn').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var commentId = parseInt(btn.getAttribute('data-comment-id'), 10);
+          var aId = parseInt(btn.getAttribute('data-ann-id'), 10);
+          if (!confirm('Удалить комментарий?')) return;
+          api('/board/announcements/'+aId+'/comments/'+commentId, { method: 'DELETE' }).then(function(){ loadAnnouncementComments(aId); }).catch(function(e){ alert(e.message); });
+        });
+      });
     } catch (_) { wrap.innerHTML = ''; }
   }
   document.querySelectorAll('.board-tab').forEach(function(tab){

@@ -46,6 +46,10 @@ class AnnouncementCommentCreate(BaseModel):
     content: str
 
 
+class AnnouncementCommentUpdate(BaseModel):
+    content: str
+
+
 class AnnouncementCommentResponse(BaseModel):
     id: int
     announcement_id: int

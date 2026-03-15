@@ -9,6 +9,7 @@ from app.models import Announcement, AnnouncementComment, Poll, PollOption, Poll
 from app.schemas.announcement import (
     AnnouncementCommentCreate,
     AnnouncementCommentResponse,
+    AnnouncementCommentUpdate,
     AnnouncementCreate,
     AnnouncementResponse,
     AnnouncementUpdate,
@@ -193,6 +194,74 @@ def create_announcement_comment(
         content=c.content,
         created_at=c.created_at,
     )
+
+
+@router.patch("/announcements/{announcement_id}/comments/{comment_id}", response_model=AnnouncementCommentResponse)
+def update_announcement_comment(
+    announcement_id: int,
+    comment_id: int,
+    data: AnnouncementCommentUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    """Редактировать комментарий (автор или admin/chief)."""
+    c = (
+        db.query(AnnouncementComment)
+        .filter(
+            AnnouncementComment.id == comment_id,
+            AnnouncementComment.announcement_id == announcement_id,
+        )
+        .first()
+    )
+    if not c:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Комментарий не найден")
+    if c.author_id != user.id and user.role not in ("admin", "chief") and not user.is_superuser:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+    content = data.content.strip()
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Текст не может быть пустым")
+    c.content = content
+    db.commit()
+    db.refresh(c)
+    c = (
+        db.query(AnnouncementComment)
+        .options(joinedload(AnnouncementComment.author))
+        .filter(AnnouncementComment.id == comment_id)
+        .first()
+    )
+    return AnnouncementCommentResponse(
+        id=c.id,
+        announcement_id=c.announcement_id,
+        author_id=c.author_id,
+        author=_author_brief(c.author) if c.author else None,
+        content=c.content,
+        created_at=c.created_at,
+    )
+
+
+@router.delete("/announcements/{announcement_id}/comments/{comment_id}")
+def delete_announcement_comment(
+    announcement_id: int,
+    comment_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    """Удалить комментарий (автор или admin/chief)."""
+    c = (
+        db.query(AnnouncementComment)
+        .filter(
+            AnnouncementComment.id == comment_id,
+            AnnouncementComment.announcement_id == announcement_id,
+        )
+        .first()
+    )
+    if not c:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Комментарий не найден")
+    if c.author_id != user.id and user.role not in ("admin", "chief") and not user.is_superuser:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+    db.delete(c)
+    db.commit()
+    return {"detail": "ok"}
 
 
 # ——— Опросы ———
