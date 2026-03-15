@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "crm-azs-backend"
+version = "0.1.0"
+description = "Backend CRM для сети АЗС и офиса на FastAPI + SQLAlchemy + PostgreSQL."
+authors = ["CRM Team <dev@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.115.0"
+uvicorn = {extras = ["standard"], version = "^0.32.0"}
+SQLAlchemy = "^2.0.0"
+alembic = "^1.13.0"
+asyncpg = "^0.30.0"
+psycopg2-binary = "^2.9.0"
+python-dotenv = "^1.0.0"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+pyjwt = "^2.8.0"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.0.0"
+isort = "^5.13.0"
+mypy = "^1.8.0"
+ruff = "^0.5.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
