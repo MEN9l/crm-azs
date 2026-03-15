@@ -387,6 +387,35 @@
     .notifications-dropdown .n-footer { padding: 10px; text-align: center; border-top: 1px solid var(--border-subtle); }
     .notifications-dropdown .n-footer button { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 13px; font-weight: 500; }
     .notifications-dropdown .n-footer button:hover { text-decoration: underline; }
+    .profile-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 10px;
+      width: 320px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 12px 48px rgba(0,0,0,0.35);
+      z-index: 100;
+      opacity: 0;
+      transform: translateY(-8px);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .profile-dropdown.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+    .profile-dropdown-header { display: flex; align-items: center; gap: 14px; padding: 18px; border-bottom: 1px solid var(--border-subtle); }
+    .profile-dropdown-avatar { width: 52px; height: 52px; border-radius: 50%; background: var(--accent-soft); flex-shrink: 0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px; color: var(--accent); }
+    .profile-dropdown-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-dropdown-name { font-weight: 600; font-size: 1.05rem; color: var(--text); }
+    .profile-dropdown-body { padding: 14px 18px; font-size: 13px; color: var(--text-muted); }
+    .profile-dropdown-row { margin-bottom: 6px; }
+    .profile-dropdown-row:last-child { margin-bottom: 0; }
+    .profile-dropdown-footer { padding: 12px 18px; border-top: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 8px; }
+    .profile-dropdown-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: 14px; font-weight: 500; text-align: left; padding: 8px 0; border-radius: 6px; transition: background 0.15s; }
+    .profile-dropdown-btn:hover { background: var(--accent-soft); }
+    .profile-dropdown-logout { color: var(--text-muted); }
+    .profile-dropdown-logout:hover { background: rgba(244, 63, 94, 0.12); color: var(--err); }
     #loading { color: var(--text-muted); }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; backdrop-filter: blur(4px); }
     .modal-overlay.hidden { display: none; }
@@ -500,6 +529,16 @@
     .comment-content-row .comment-save-btn { margin-right: 6px; }
     .board-header .btn-primary { border-radius: 12px; padding: 12px 20px; font-weight: 600; box-shadow: 0 2px 8px rgba(14, 165, 233, 0.25); }
     .board-header .btn-primary:hover { box-shadow: 0 4px 12px rgba(14, 165, 233, 0.35); }
+    .announcement-card-actions { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-subtle); flex-wrap: wrap; }
+    .ann-card-btn { padding: 5px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; border: none; cursor: pointer; transition: all 0.15s ease; background: transparent; color: var(--text-muted); }
+    .ann-card-btn:hover { color: var(--text); }
+    .ann-card-btn-pin:hover { background: var(--accent-soft); color: var(--accent); }
+    .ann-card-btn-important:hover { background: rgba(244, 63, 94, 0.12); color: var(--err); }
+    .ann-card-btn-delete:hover { background: rgba(244, 63, 94, 0.15); color: var(--err); }
+    .ann-card-btn::before { margin-right: 4px; }
+    .ann-card-btn-pin::before { content: "📌"; }
+    .ann-card-btn-important::before { content: "⚠"; }
+    .ann-card-btn-delete::before { content: "🗑"; }
 
     .card-row { display: flex; flex-wrap: wrap; gap: 20px; }
     .layout-content h2 { font-size: 1.35rem; font-weight: 700; margin: 0 0 16px; letter-spacing: -0.02em; }
@@ -586,7 +625,6 @@
         <div class="sidebar-link" data-view="tickets">Заявки</div>
         <div class="sidebar-link" data-view="tasks">Задачи</div>
         <div class="sidebar-link" data-view="chat">Чат</div>
-        <div class="sidebar-link" data-view="profile">Профиль</div>
         <div class="sidebar-link" data-view="users" id="sidebar-users-link" style="display:none;">Пользователи</div>
       </nav>
     </aside>
@@ -601,10 +639,26 @@
           <div class="n-footer"><button type="button" id="notifications-read-all">Прочитать все</button></div>
         </div>
         <button type="button" class="theme-toggle" id="theme-toggle" data-tooltip="Светлая / тёмная тема" title="Светлая / тёмная тема">🌓</button>
-        <div class="avatar-wrap" id="topbar-avatar-wrap" style="display:flex;align-items:center;gap:10px;">
+        <div class="avatar-wrap topbar-profile-trigger" id="topbar-avatar-wrap" style="display:flex;align-items:center;gap:10px;cursor:pointer;position:relative;">
           <div id="topbar-avatar-placeholder" class="avatar-placeholder" style="display:none;"></div>
           <img id="topbar-avatar" class="avatar" src="" alt="" style="display:none;" />
           <span id="user-name"></span>
+          <div id="profile-dropdown" class="profile-dropdown" onclick="event.stopPropagation()">
+            <div class="profile-dropdown-header">
+              <div id="profile-dropdown-avatar-wrap" class="profile-dropdown-avatar"></div>
+              <div id="profile-dropdown-name" class="profile-dropdown-name"></div>
+            </div>
+            <div class="profile-dropdown-body">
+              <div id="profile-dropdown-email" class="profile-dropdown-row"></div>
+              <div id="profile-dropdown-phone" class="profile-dropdown-row"></div>
+              <div id="profile-dropdown-position" class="profile-dropdown-row"></div>
+              <div id="profile-dropdown-department" class="profile-dropdown-row"></div>
+            </div>
+            <div class="profile-dropdown-footer">
+              <button type="button" class="profile-dropdown-btn" id="profile-dropdown-edit">Редактировать профиль</button>
+              <button type="button" class="profile-dropdown-btn profile-dropdown-logout" id="profile-dropdown-logout">Выйти</button>
+            </div>
+          </div>
         </div>
         <button type="button" class="btn-logout" id="logout-btn" data-tooltip="Выйти из аккаунта" title="Выйти">Выйти</button>
       </header>
@@ -1027,9 +1081,54 @@
   document.getElementById('notifications-read-all').addEventListener('click', function(){
     api('/notifications/read-all', { method: 'POST' }).then(function(){ loadNotificationCount(); loadNotificationsList(); });
   });
-  document.addEventListener('click', function(){ document.getElementById('notifications-dropdown').classList.remove('open'); });
+  document.addEventListener('click', function(){
+    document.getElementById('notifications-dropdown').classList.remove('open');
+    document.getElementById('profile-dropdown').classList.remove('open');
+  });
+  document.getElementById('topbar-avatar-wrap').addEventListener('click', function(e){
+    e.stopPropagation();
+    var dd = document.getElementById('profile-dropdown');
+    dd.classList.toggle('open');
+    if (dd.classList.contains('open')) {
+      api('/users/me').then(function(me){
+        document.getElementById('profile-dropdown-name').textContent = me.full_name || me.email || '—';
+        document.getElementById('profile-dropdown-email').textContent = 'Email: ' + (me.email || '—');
+        document.getElementById('profile-dropdown-phone').textContent = 'Телефон: ' + (me.phone || '—');
+        document.getElementById('profile-dropdown-position').textContent = 'Должность: ' + (me.position || '—');
+        document.getElementById('profile-dropdown-department').textContent = 'Подразделение: ' + (me.department || '—');
+        var avatarWrap = document.getElementById('profile-dropdown-avatar-wrap');
+        avatarWrap.innerHTML = '';
+        if (me.avatar) {
+          var img = document.createElement('img');
+          img.alt = '';
+          fetch(API + '/users/me/avatar', { headers: { 'Authorization': 'Bearer ' + getToken() } })
+            .then(function(r){ if (!r.ok) throw new Error(); return r.blob(); })
+            .then(function(blob){ img.src = URL.createObjectURL(blob); })
+            .catch(function(){ avatarWrap.innerHTML = ''; var d = document.createElement('div'); d.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:var(--accent);'; d.textContent = (me.full_name || '?').charAt(0).toUpperCase(); avatarWrap.appendChild(d); });
+          avatarWrap.appendChild(img);
+        } else {
+          var d = document.createElement('div');
+          d.style.cssText = 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:var(--accent);';
+          d.textContent = (me.full_name || '?').charAt(0).toUpperCase();
+          avatarWrap.appendChild(d);
+        }
+      }).catch(function(){ document.getElementById('profile-dropdown').classList.remove('open'); });
+    }
+  });
+  document.getElementById('profile-dropdown-edit').addEventListener('click', function(){
+    document.getElementById('profile-dropdown').classList.remove('open');
+    switchView('profile');
+  });
+  document.getElementById('profile-dropdown-logout').addEventListener('click', function(){
+    document.getElementById('profile-dropdown').classList.remove('open');
+    if (notificationPollInterval) { clearInterval(notificationPollInterval); notificationPollInterval = null; }
+    clearAuth();
+    showLogin();
+  });
   document.addEventListener('keydown', function(e){
     if (e.key !== 'Escape') return;
+    document.getElementById('notifications-dropdown').classList.remove('open');
+    document.getElementById('profile-dropdown').classList.remove('open');
     var openModal = document.querySelector('.modal-overlay:not(.hidden)');
     if (!openModal) return;
     openModal.classList.add('hidden');
@@ -1201,17 +1300,38 @@
     var label = document.getElementById('online-count-label');
     var avatarsEl = document.getElementById('online-avatars');
     if (!circle || !label || !avatarsEl) return;
+    if (avatarsEl._blobUrls) { avatarsEl._blobUrls.forEach(function(url){ try { URL.revokeObjectURL(url); } catch(_){} }); avatarsEl._blobUrls = []; }
     try {
       var list = await api('/users/online');
       var n = list.length;
       circle.textContent = n;
       label.textContent = n === 0 ? 'Никого в сети' : (n === 1 ? '1 сотрудник' : n < 5 ? n + ' сотрудника' : n + ' сотрудников');
-      avatarsEl.innerHTML = list.map(function(u){
-        var src = u.avatar ? (API + '/users/' + u.id + '/avatar') : '';
-        var style = 'width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--border);background:var(--bg-elevated);';
-        var img = src ? '<img src="'+src+'" alt="" style="'+style+'" title="'+escapeHtml(u.full_name)+'" />' : '<div style="'+style+';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent);" title="'+escapeHtml(u.full_name)+'">'+(u.full_name.charAt(0)||'?').toUpperCase()+'</div>';
-        return '<a href="#" style="display:block;" class="online-avatar-wrap" data-user-id="'+u.id+'" title="'+escapeHtml(u.full_name)+'">'+img+'</a>';
-      }).join('');
+      avatarsEl._blobUrls = [];
+      avatarsEl.innerHTML = '';
+      var style = 'width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--border);background:var(--bg-elevated);';
+      list.forEach(function(u){
+        var wrap = document.createElement('a');
+        wrap.href = '#';
+        wrap.className = 'online-avatar-wrap';
+        wrap.title = u.full_name || '';
+        wrap.setAttribute('data-user-id', String(u.id));
+        if (u.avatar) {
+          var img = document.createElement('img');
+          img.alt = '';
+          img.style.cssText = style;
+          wrap.appendChild(img);
+          fetch(API + '/users/' + u.id + '/avatar', { headers: { 'Authorization': 'Bearer ' + getToken() } })
+            .then(function(r){ if (!r.ok) throw new Error(); return r.blob(); })
+            .then(function(blob){ var url = URL.createObjectURL(blob); avatarsEl._blobUrls.push(url); img.src = url; })
+            .catch(function(){ var d = document.createElement('div'); d.style.cssText = style + ';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent);'; d.textContent = (u.full_name || '?').charAt(0).toUpperCase(); wrap.replaceChild(d, img); });
+        } else {
+          var div = document.createElement('div');
+          div.style.cssText = style + ';display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--accent);';
+          div.textContent = (u.full_name || '?').charAt(0).toUpperCase();
+          wrap.appendChild(div);
+        }
+        avatarsEl.appendChild(wrap);
+      });
     } catch (_) {
       circle.textContent = '0';
       label.textContent = '—';
@@ -1225,6 +1345,8 @@
     var query = boardFilter ? '?filter=' + encodeURIComponent(boardFilter) : '';
     try {
       var list = await api('/board/announcements' + query);
+      var me = getUser();
+      var canManageAny = me && (me.role === 'admin' || me.role === 'chief');
       if (!list.length) { listEl.innerHTML = '<p style="color:var(--text-muted);font-size:14px;margin:0;">Пока нет объявлений.</p>'; return; }
       listEl.innerHTML = list.map(function(a){
         var author = (a.author && a.author.full_name) ? escapeHtml(a.author.full_name) : '—';
@@ -1237,6 +1359,8 @@
         var tagHtml = tagLabel ? '<span class="'+tagClass+'">'+escapeHtml(tagLabel)+'</span>' : '';
         var pinIcon = (a.is_pinned ? '📌 ' : '');
         var cardClass = 'announcement-card' + (a.is_pinned ? ' announcement-card--pinned' : '') + (a.is_important ? ' announcement-card--important' : '');
+        var canManage = me && (me.id === a.author_id || canManageAny);
+        var actionsHtml = canManage ? '<div class="announcement-card-actions"><button type="button" class="ann-card-btn ann-card-btn-pin" data-id="'+a.id+'" data-pinned="'+(a.is_pinned?'1':'0')+'">'+(a.is_pinned?'Открепить':'Закрепить')+'</button><button type="button" class="ann-card-btn ann-card-btn-important" data-id="'+a.id+'" data-important="'+(a.is_important?'1':'0')+'">'+(a.is_important?'Снять важность':'Важное')+'</button><button type="button" class="ann-card-btn ann-card-btn-delete" data-id="'+a.id+'">Удалить</button></div>' : '';
         return '<div class="card '+cardClass+'" data-id="'+a.id+'">'+
           '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">'+
             '<div class="announcement-card-title">'+pinIcon+escapeHtml(a.title)+'</div>'+
@@ -1244,6 +1368,7 @@
           '</div>'+
           '<div class="announcement-card-body">'+escapeHtml(a.content)+'</div>'+
           '<div class="announcement-card-meta">📅 '+date+' · '+author+'</div>'+
+          actionsHtml+
           '<div class="announcement-comments-wrap" data-ann-id="'+a.id+'"></div>'+
           '<div class="announcement-comment-row"><input type="text" class="announcement-comment-input" placeholder="Написать комментарий..." data-ann-id="'+a.id+'" /><button type="button" class="btn-primary announcement-comment-btn" data-ann-id="'+a.id+'">Отправить</button></div>'+
         '</div>';
@@ -1254,6 +1379,15 @@
       });
       listEl.querySelectorAll('.announcement-comment-btn').forEach(function(btn){
         btn.addEventListener('click', function(){ var id = parseInt(btn.getAttribute('data-ann-id'), 10); var wrap = btn.closest('.announcement-card'); var inp = wrap.querySelector('.announcement-comment-input'); var text = inp && inp.value.trim(); if (!text) return; api('/board/announcements/'+id+'/comments', { method: 'POST', body: JSON.stringify({ content: text }) }).then(function(){ inp.value = ''; loadAnnouncementComments(id); }).catch(function(e){ alert(e.message); }); });
+      });
+      listEl.querySelectorAll('.ann-card-btn-pin').forEach(function(btn){
+        btn.addEventListener('click', function(){ var id = parseInt(btn.getAttribute('data-id'), 10); var pinned = btn.getAttribute('data-pinned') === '1'; api('/board/announcements/'+id, { method: 'PATCH', body: JSON.stringify({ is_pinned: !pinned }) }).then(function(){ loadAnnouncements(); }).catch(function(e){ alert(e.message); }); });
+      });
+      listEl.querySelectorAll('.ann-card-btn-important').forEach(function(btn){
+        btn.addEventListener('click', function(){ var id = parseInt(btn.getAttribute('data-id'), 10); var important = btn.getAttribute('data-important') === '1'; api('/board/announcements/'+id, { method: 'PATCH', body: JSON.stringify({ is_important: !important }) }).then(function(){ loadAnnouncements(); }).catch(function(e){ alert(e.message); }); });
+      });
+      listEl.querySelectorAll('.ann-card-btn-delete').forEach(function(btn){
+        btn.addEventListener('click', function(){ var id = parseInt(btn.getAttribute('data-id'), 10); if (!confirm('Удалить объявление?')) return; api('/board/announcements/'+id, { method: 'DELETE' }).then(function(){ loadAnnouncements(); }).catch(function(e){ alert(e.message); }); });
       });
     } catch (_) { listEl.innerHTML = '<p style="color:var(--err);">Не удалось загрузить объявления.</p>'; }
   }
