@@ -8,6 +8,8 @@ class UserBase(BaseModel):
     email: str
     phone: str | None = None
     role: str = "operator"
+    position: str | None = None
+    department: str | None = None
 
 
 class UserCreate(UserBase):
@@ -19,6 +21,16 @@ class UserUpdate(BaseModel):
     phone: str | None = None
     role: str | None = None
     is_active: bool | None = None
+    position: str | None = None
+    department: str | None = None
+
+
+class ProfileUpdate(BaseModel):
+    """Обновление своего профиля (без роли и email)."""
+    full_name: str | None = None
+    phone: str | None = None
+    position: str | None = None
+    department: str | None = None
 
 
 class UserResponse(UserBase):
@@ -26,6 +38,7 @@ class UserResponse(UserBase):
     is_active: bool
     is_superuser: bool
     created_at: datetime
+    avatar: str | None = None
 
     class Config:
         from_attributes = True
@@ -36,6 +49,8 @@ class UserBrief(BaseModel):
     full_name: str
     email: str
     role: str
+    position: str | None = None
+    department: str | None = None
 
     class Config:
         from_attributes = True
