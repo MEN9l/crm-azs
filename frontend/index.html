@@ -1403,15 +1403,28 @@
           <h2>Чат</h2>
           <div class="chat-layout">
             <aside class="chat-sidebar">
+              <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <button type="button" class="btn-secondary" id="chat-tab-chats" style="padding:8px 12px;">Чаты</button>
+                  <button type="button" class="btn-secondary" id="chat-tab-users" style="padding:8px 12px;">Пользователи</button>
+                </div>
+                <button type="button" class="btn-primary" id="chat-group-create" style="padding:8px 12px;display:none;">+ Группа</button>
+              </div>
               <ul id="chat-channels"></ul>
+              <ul id="chat-users" style="display:none;list-style:none;margin:0;padding:0;"></ul>
               <div id="chat-members-block" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-subtle);display:none;">
                 <h4 style="margin:0 0 8px;font-size:13px;color:var(--text-muted);">Участники</h4>
                 <ul id="chat-members-list" style="list-style:none;margin:0;padding:0;font-size:13px;"></ul>
                 <div id="chat-add-member-wrap" style="margin-top:8px;display:none;">
-                  <select id="chat-add-member-select" style="width:100%;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:13px;margin-bottom:6px;">
+                  <input type="text" id="chat-add-member-search" placeholder="Найти сотрудника..." style="width:100%;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:13px;margin-bottom:6px;" />
+                  <select id="chat-add-member-select" size="6" style="width:100%;padding:6px 8px;border-radius:12px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);font-size:13px;margin-bottom:6px;overflow:auto;">
                     <option value="">— выбрать сотрудника</option>
                   </select>
                   <button type="button" class="btn-secondary" id="chat-add-member-btn" style="width:100%;">Добавить в чат</button>
+                </div>
+                <div id="chat-group-admin-actions" style="margin-top:10px;display:none;">
+                  <button type="button" class="btn-secondary" id="chat-group-rename" style="width:100%;margin-bottom:8px;">Переименовать группу</button>
+                  <button type="button" class="btn-danger" id="chat-group-delete" style="width:100%;">Удалить группу</button>
                 </div>
               </div>
             </aside>
@@ -4413,7 +4426,7 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     });
   }
 
-  let currentChatId = 1;
+  let currentChatId = null;
   let chatWs = null;
   let chatReconnectTimer = null;
   let chatReconnectDelay = 2000;
@@ -4533,7 +4546,25 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
 
   async function loadChat() {
     const channelsEl = document.getElementById('chat-channels');
+    const usersEl = document.getElementById('chat-users');
     const messagesEl = document.getElementById('chat-messages');
+    const tabChats = document.getElementById('chat-tab-chats');
+    const tabUsers = document.getElementById('chat-tab-users');
+    const groupCreateBtn = document.getElementById('chat-group-create');
+    const u = getUser();
+    const isAdmin = u && (u.role === 'admin' || u.role === 'chief');
+    if (groupCreateBtn) groupCreateBtn.style.display = isAdmin ? '' : 'none';
+
+    function setTab(name) {
+      var isChats = name === 'chats';
+      if (channelsEl) channelsEl.style.display = isChats ? '' : 'none';
+      if (usersEl) usersEl.style.display = isChats ? 'none' : '';
+      if (tabChats) tabChats.style.opacity = isChats ? '1' : '0.7';
+      if (tabUsers) tabUsers.style.opacity = isChats ? '0.7' : '1';
+    }
+    if (tabChats && !tabChats._inited) { tabChats._inited = true; tabChats.addEventListener('click', function(){ setTab('chats'); }); }
+    if (tabUsers && !tabUsers._inited) { tabUsers._inited = true; tabUsers.addEventListener('click', function(){ setTab('users'); loadChatContacts(); }); }
+    setTab('chats');
     try {
       const chats = await api('/chat/chats');
       if (Array.isArray(chats) && chats.length) {
@@ -4564,11 +4595,43 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       return;
     }
   }
+
+  async function loadChatContacts() {
+    var usersEl = document.getElementById('chat-users');
+    if (!usersEl) return;
+    usersEl.innerHTML = '<li style="color:var(--text-muted);padding:10px 12px;">Загрузка…</li>';
+    try {
+      var list = await api('/chat/contacts');
+      usersEl.innerHTML = list.map(function(u){
+        var name = escapeHtml(u.full_name || u.email);
+        var meta = (u.is_office ? 'офис' : 'АЗС') + (u.position ? (' • ' + escapeHtml(u.position)) : '');
+        return '<li class="chat-user-item" data-user-id="'+u.id+'" style="padding:10px 12px;border-radius:12px;cursor:pointer;transition:background var(--transition);"><div style="font-weight:800;font-size:13px;">'+name+'</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">'+meta+'</div></li>';
+      }).join('');
+      usersEl.querySelectorAll('.chat-user-item').forEach(function(li){
+        li.addEventListener('mouseenter', function(){ li.style.background = 'var(--border-subtle)'; });
+        li.addEventListener('mouseleave', function(){ li.style.background = ''; });
+        li.addEventListener('click', async function(){
+          var uid = parseInt(li.getAttribute('data-user-id')||'0',10);
+          if (!uid) return;
+          try {
+            var chat = await api('/chat/direct/'+uid, { method: 'POST', body: '{}' });
+            // переключаемся в таб "Чаты" и открываем чат
+            try { document.getElementById('chat-tab-chats').click(); } catch(_) {}
+            currentChatId = chat.id;
+            await loadChat();
+          } catch (e) { alert(e.message); }
+        });
+      });
+    } catch (e) {
+      usersEl.innerHTML = '<li style="color:var(--err);padding:10px 12px;">'+escapeHtml(e.message || 'Не удалось загрузить пользователей')+'</li>';
+    }
+  }
   async function loadChatMembers(chatId) {
     var block = document.getElementById('chat-members-block');
     var listEl = document.getElementById('chat-members-list');
     var addWrap = document.getElementById('chat-add-member-wrap');
     var addSelect = document.getElementById('chat-add-member-select');
+    var addSearch = document.getElementById('chat-add-member-search');
     if (!block || !listEl) return;
     block.style.display = 'block';
     listEl.innerHTML = '';
@@ -4576,6 +4639,13 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     var canManage = u && (u.role === 'admin' || u.role === 'chief');
     if (addWrap) addWrap.style.display = canManage ? 'block' : 'none';
     try {
+      // показываем админ-кнопки только для групповых чатов
+      try {
+        var ch = await api('/chat/chats');
+        var cur = (Array.isArray(ch) ? ch.find(function(x){ return x.id === chatId; }) : null);
+        var adminActions = document.getElementById('chat-group-admin-actions');
+        if (adminActions) adminActions.style.display = (canManage && cur && cur.type === 'group') ? 'block' : 'none';
+      } catch (_) {}
       var members = await api('/chat/chats/'+chatId+'/members');
       listEl.innerHTML = members.length ? members.map(function(m){
         var name = escapeHtml(m.user.full_name || m.user.email);
@@ -4589,7 +4659,18 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
         var allUsers = await api('/users/admin');
         var memberIds = members.map(function(m){ return m.user.id; });
         var notInChat = allUsers.filter(function(u){ return memberIds.indexOf(u.id) === -1; });
-        addSelect.innerHTML = '<option value="">— выбрать сотрудника</option>' + notInChat.map(function(u){ return '<option value="'+u.id+'">'+escapeHtml(u.full_name)+' ('+(u.is_office?'офис':'АЗС')+')</option>'; }).join('');
+        var options = notInChat.map(function(u){ return { id: u.id, label: (u.full_name || u.email)+' — '+(u.is_office?'офис':'АЗС') }; });
+        addSelect._allOptions = options;
+        function renderOptions(filter) {
+          var f = (filter || '').toLowerCase();
+          var rows = options.filter(function(o){ return !f || o.label.toLowerCase().indexOf(f) !== -1; });
+          addSelect.innerHTML = '<option value="">— выбрать сотрудника</option>' + rows.map(function(o){ return '<option value="'+o.id+'">'+escapeHtml(o.label)+'</option>'; }).join('');
+        }
+        renderOptions(addSearch && addSearch.value || '');
+        if (addSearch && !addSearch._inited) {
+          addSearch._inited = true;
+          addSearch.addEventListener('input', function(){ renderOptions(addSearch.value || ''); });
+        }
       }
     } catch (_) {
       listEl.innerHTML = '<li style="color:var(--text-muted);">Не удалось загрузить</li>';
@@ -4600,6 +4681,40 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     if (!sel || !sel.value) return;
     api('/chat/chats/'+currentChatId+'/members', { method: 'POST', body: JSON.stringify({ user_id: parseInt(sel.value,10) }) }).then(function(){ loadChatMembers(currentChatId); sel.value = ''; }).catch(function(e){ alert(e.message); });
   });
+
+  // админ: управление группами
+  if (document.getElementById('chat-group-create')) {
+    document.getElementById('chat-group-create').addEventListener('click', async function(){
+      var name = prompt('Название группы');
+      if (!name) return;
+      try {
+        await api('/chat/groups', { method:'POST', body: JSON.stringify({ name: name }) });
+        loadChat();
+      } catch (e) { alert(e.message); }
+    });
+  }
+  if (document.getElementById('chat-group-rename')) {
+    document.getElementById('chat-group-rename').addEventListener('click', async function(){
+      if (!currentChatId) return;
+      var name = prompt('Новое название группы');
+      if (!name) return;
+      try {
+        await api('/chat/groups/'+currentChatId, { method:'PATCH', body: JSON.stringify({ name: name }) });
+        loadChat();
+      } catch (e) { alert(e.message); }
+    });
+  }
+  if (document.getElementById('chat-group-delete')) {
+    document.getElementById('chat-group-delete').addEventListener('click', async function(){
+      if (!currentChatId) return;
+      if (!confirm('Удалить группу и всю переписку?')) return;
+      try {
+        await api('/chat/groups/'+currentChatId, { method:'DELETE' });
+        currentChatId = null;
+        loadChat();
+      } catch (e) { alert(e.message); }
+    });
+  }
   async function loadChatMessages(append, _retry) {
     const messagesEl = document.getElementById('chat-messages');
     const moreWrap = document.getElementById('chat-load-more-wrap');

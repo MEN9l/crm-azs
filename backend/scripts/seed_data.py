@@ -30,8 +30,6 @@ STATIONS = [
     {"name": "АЗС-2 Северная", "code": "AZS-02", "address": "ул. Северная, 5"},
 ]
 
-# Общий чат
-GENERAL_CHAT_NAME = "Общий офис"
 
 
 def seed(db: Session) -> None:
@@ -67,16 +65,11 @@ def seed(db: Session) -> None:
         stations.append(st)
         admin.stations.append(st)
 
-    general_chat = Chat(type="general", name=GENERAL_CHAT_NAME)
-    db.add(general_chat)
-    db.flush()
+    # Общего чата больше нет — только чаты по АЗС и групповые/личные
 
     for st in stations:
         station_chat = Chat(type="station", name=st.name, station_id=st.id)
         db.add(station_chat)
-
-    msg = Message(chat_id=general_chat.id, sender_id=admin.id, content="Добро пожаловать в CRM АЗС!")
-    db.add(msg)
 
     # Пару тестовых заявок и задач
     t1 = Ticket(
@@ -105,13 +98,13 @@ def seed(db: Session) -> None:
     db.commit()
     print(f"Создан пользователь: {ADMIN_EMAIL} / {ADMIN_PASSWORD}")
     print("Созданы АЗС:", [s.code for s in stations])
-    print("Создан общий чат и тестовые заявки/задачи.")
+    print("Созданы чаты по АЗС и тестовые заявки/задачи.")
 
     # Пользователь АЗС для проверки чата
-    add_operator(db, stations[0].id, general_chat.id, admin.id)
+    add_operator(db, stations[0].id, admin.id)
 
 
-def add_operator(db: Session, station_id: int, general_chat_id: int, admin_id: int) -> None:
+def add_operator(db: Session, station_id: int, admin_id: int) -> None:
     """Создаёт пользователя-оператора АЗС, если его ещё нет."""
     if db.query(User).filter(User.email == OPERATOR_EMAIL).first():
         print(f"Пользователь {OPERATOR_EMAIL} уже есть. Пропуск.")
@@ -129,12 +122,6 @@ def add_operator(db: Session, station_id: int, general_chat_id: int, admin_id: i
     db.add(operator)
     db.flush()
     operator.stations.append(station)
-    msg = Message(
-        chat_id=general_chat_id,
-        sender_id=operator.id,
-        content="Здравствуйте! Готов принять заявки с АЗС.",
-    )
-    db.add(msg)
     db.commit()
     print(f"Создан пользователь АЗС: {OPERATOR_EMAIL} / {OPERATOR_PASSWORD}")
 

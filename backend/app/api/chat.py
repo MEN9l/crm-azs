@@ -20,6 +20,14 @@ class ChatAddMemberBody(BaseModel):
     user_id: int
 
 
+class ChatGroupCreateBody(BaseModel):
+    name: str
+
+
+class ChatGroupUpdateBody(BaseModel):
+    name: str
+
+
 def _user_in_chat_extra(db: Session, chat_id: int, user_id: int) -> bool:
     row = db.execute(
         chat_member_table.select().where(
@@ -36,11 +44,13 @@ def _user_can_see_chat(db: Session, chat: Chat, user: User) -> bool:
         return False
     if _user_in_chat_extra(db, chat.id, user.id):
         return True
-    if chat.type == "general":
-        return bool(user.is_office)
+    if chat.type == "group":
+        return False  # доступ только по членству (extra members)
     if chat.type == "station" and chat.station_id:
         return any(s.id == chat.station_id for s in user.stations)
-    # ticket/task/direct — пока считаем доступ по станции или общий
+    if chat.type == "direct":
+        return False  # доступ только по членству (extra members)
+    # ticket/task — пока считаем доступ по станции или членству
     if chat.station_id:
         return any(s.id == chat.station_id for s in user.stations)
     return bool(user.is_office)
@@ -60,7 +70,125 @@ def list_chats(
     user: Annotated[User, Depends(get_current_user)],
 ):
     """Список чатов: офис видит общий; АЗС — свои станции; плюс чаты, куда пользователя добавили."""
-    return _chats_visible_to_user(db, user)
+    return [c for c in _chats_visible_to_user(db, user) if c.type != "general"]
+
+
+@router.get("/contacts", response_model=list[UserBrief])
+def list_contacts(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    """Контакты для личных сообщений: все активные пользователи, кроме текущего."""
+    users = db.query(User).filter(User.is_active == True).order_by(User.full_name).all()
+    return [
+        UserBrief(
+            id=u.id,
+            full_name=u.full_name,
+            email=u.email,
+            role=u.role,
+            is_office=getattr(u, "is_office", False),
+            position=getattr(u, "position", None),
+            department=getattr(u, "department", None),
+            department_id=getattr(u, "department_id", None),
+        )
+        for u in users
+        if u.id != user.id
+    ]
+
+
+@router.post("/groups", response_model=ChatResponse, status_code=status.HTTP_201_CREATED)
+def create_group_chat(
+    body: ChatGroupCreateBody,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    require_role(current_user, ("admin", "chief"))
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Название группы не заполнено")
+    chat = Chat(type="group", name=name)
+    db.add(chat)
+    db.flush()
+    # добавляем создателя в участники
+    db.execute(chat_member_table.insert().values(chat_id=chat.id, user_id=current_user.id))
+    db.commit()
+    db.refresh(chat)
+    return chat
+
+
+@router.patch("/groups/{chat_id}", response_model=ChatResponse)
+def rename_group_chat(
+    chat_id: int,
+    body: ChatGroupUpdateBody,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    require_role(current_user, ("admin", "chief"))
+    chat = db.query(Chat).filter(Chat.id == chat_id, Chat.type == "group").first()
+    if not chat:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена")
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Название группы не заполнено")
+    chat.name = name
+    db.commit()
+    db.refresh(chat)
+    return chat
+
+
+@router.delete("/groups/{chat_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_group_chat(
+    chat_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    require_role(current_user, ("admin", "chief"))
+    chat = db.query(Chat).filter(Chat.id == chat_id, Chat.type == "group").first()
+    if not chat:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Группа не найдена")
+    # удаляем сообщения, потом чат (на случай отсутствия CASCADE)
+    db.query(Message).filter(Message.chat_id == chat_id).delete()
+    db.query(Chat).filter(Chat.id == chat_id).delete()
+    db.commit()
+    return None
+
+
+@router.post("/direct/{user_id}", response_model=ChatResponse, status_code=status.HTTP_201_CREATED)
+def get_or_create_direct_chat(
+    user_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+):
+    """Получить или создать личный чат между текущим пользователем и user_id."""
+    if user_id == current_user.id:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Нельзя создать чат с самим собой")
+    other = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+    if not other:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пользователь не найден")
+    # ищем direct чат, где есть оба участника
+    q = (
+        db.query(Chat)
+        .filter(Chat.type == "direct")
+        .join(chat_member_table, chat_member_table.c.chat_id == Chat.id)
+        .filter(chat_member_table.c.user_id.in_([current_user.id, user_id]))
+        .group_by(Chat.id)
+    )
+    chat = None
+    for c in q.all():
+        members = {row.user_id for row in db.execute(chat_member_table.select().where(chat_member_table.c.chat_id == c.id)).fetchall()}
+        if current_user.id in members and user_id in members and len(members) == 2:
+            chat = c
+            break
+    if chat:
+        return chat
+    chat = Chat(type="direct", name=None)
+    db.add(chat)
+    db.flush()
+    db.execute(chat_member_table.insert().values(chat_id=chat.id, user_id=current_user.id))
+    db.execute(chat_member_table.insert().values(chat_id=chat.id, user_id=user_id))
+    db.commit()
+    db.refresh(chat)
+    return chat
 
 
 def _get_chat_or_404(db: Session, chat_id: int, user: User):
@@ -146,9 +274,7 @@ async def send_message(
 def _chat_member_ids(db: Session, chat: Chat) -> list[int]:
     """ID пользователей, которые имеют доступ к чату (базовые по типу + добавленные вручную)."""
     ids = set()
-    if chat.type == "general":
-        for u in db.query(User).filter(User.is_office == True, User.is_active == True).all():
-            ids.add(u.id)
+    # group/direct: только extra members
     if chat.station_id:
         st = db.query(Station).filter(Station.id == chat.station_id).first()
         if st:
