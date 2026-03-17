@@ -674,6 +674,126 @@
     .chat-input-row button { flex-shrink: 0; border-radius: 999px; border: none; padding: 10px 20px; background: var(--accent); color: white; font-weight: 500; cursor: pointer; transition: background var(--transition); }
     .chat-input-row button:hover { background: var(--accent-hover); }
 
+    /* Мини-чат виджет (плавающее окно) */
+    .chat-fab {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      border: 1px solid var(--border-subtle);
+      background: linear-gradient(180deg, var(--accent) 0%, var(--accent-hover) 100%);
+      color: #fff;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 18px 48px rgba(0,0,0,0.35);
+      z-index: 999;
+      transition: transform var(--transition), filter var(--transition);
+      user-select: none;
+    }
+    .chat-fab:hover { transform: translateY(-2px); filter: brightness(1.02); }
+    .chat-fab:active { transform: translateY(0); }
+    .chat-fab .dot {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: rgba(244,63,94,0.95);
+      box-shadow: 0 0 0 3px rgba(244,63,94,0.22);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1;
+      color: #fff;
+    }
+    .chat-widget {
+      position: fixed;
+      right: 18px;
+      bottom: 84px;
+      width: 360px;
+      max-width: calc(100vw - 24px);
+      height: 520px;
+      max-height: calc(100vh - 120px);
+      border-radius: 18px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      box-shadow: 0 28px 80px rgba(0,0,0,0.42);
+      overflow: hidden;
+      z-index: 999;
+      display: none;
+    }
+    .chat-widget.open { display: flex; flex-direction: column; }
+    .chat-widget-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-card);
+    }
+    .chat-widget-title { display:flex; align-items:center; gap:10px; min-width:0; }
+    .chat-widget-title h4 { margin: 0; font-size: 14px; font-weight: 800; }
+    .chat-widget-title .sub { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+    .chat-widget-btn {
+      width: 36px; height: 36px;
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      background: var(--input-bg);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .chat-widget-btn:hover { background: var(--border-subtle); }
+    .chat-widget-body { flex:1; min-height:0; display:flex; }
+    .chat-widget-list { width: 100%; display:none; flex-direction: column; }
+    .chat-widget-list.open { display:flex; }
+    .chat-widget-search { padding: 10px 12px; border-bottom: 1px solid var(--border-subtle); background: var(--bg-elevated); }
+    .chat-widget-search input { margin:0; padding: 10px 12px; border-radius: 12px; }
+    .chat-widget-chats { padding: 10px 10px; overflow:auto; }
+    .chat-widget-chat { padding: 10px 12px; border-radius: 12px; cursor:pointer; border:1px solid transparent; }
+    .chat-widget-chat:hover { background: var(--border-subtle); }
+    .chat-widget-chat.active { background: var(--accent-soft); border-color: rgba(14,165,233,0.25); }
+    .chat-widget-chat .name { font-weight: 800; font-size: 13px; }
+    .chat-widget-chat .meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .chat-widget-unread {
+      min-width: 18px;
+      height: 18px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: rgba(244,63,94,0.95);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 900;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 0 3px rgba(244,63,94,0.18);
+    }
+    .chat-widget-thread { width: 100%; display:none; flex-direction: column; min-height:0; }
+    .chat-widget-thread.open { display:flex; }
+    .chat-widget-messages { flex:1; min-height:0; overflow:auto; padding: 12px; background: var(--bg-elevated); }
+    .chat-widget-input { display:flex; gap:10px; padding: 10px 12px; border-top: 1px solid var(--border-subtle); background: var(--bg-card); }
+    .chat-widget-input input { margin:0; flex:1; border-radius: 999px; }
+    .chat-widget-input button { border-radius: 999px; border: none; padding: 10px 16px; background: var(--accent); color:#fff; font-weight:700; cursor:pointer; }
+    .chat-widget-input button:hover { background: var(--accent-hover); }
+    .chat-bubble { margin-bottom: 10px; }
+    .chat-bubble .bubble { display:inline-block; border:1px solid var(--border-subtle); background: var(--input-bg); border-radius: 16px; padding: 9px 12px; max-width: 85%; word-break: break-word; }
+    .chat-bubble.me { text-align:right; }
+    .chat-bubble.me .bubble { background: rgba(14,165,233,0.14); border-color: rgba(14,165,233,0.26); }
+    .chat-bubble .time { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    @media (max-width: 480px) {
+      .chat-widget { width: calc(100vw - 24px); height: calc(100vh - 140px); right: 12px; bottom: 78px; }
+      .chat-fab { right: 12px; bottom: 12px; }
+    }
+
     .btn-logout {
       background: transparent;
       border: 1px solid var(--border);
@@ -1726,6 +1846,44 @@
     </div>
   </div>
 </div>
+
+<!-- Мини-чат (плавающее окно) -->
+<button type="button" id="chat-fab" class="chat-fab" title="Чат" aria-label="Открыть чат">
+  <span class="dot" id="chat-fab-dot" aria-hidden="true"></span>
+  <span style="font-size:22px;line-height:1;">💬</span>
+</button>
+<div id="chat-widget" class="chat-widget" aria-hidden="true">
+  <div class="chat-widget-header">
+    <div class="chat-widget-title">
+      <button type="button" id="chat-widget-back" class="chat-widget-btn" title="Назад" style="display:none;">←</button>
+      <div style="min-width:0;">
+        <h4 id="chat-widget-h">Чат</h4>
+        <div class="sub" id="chat-widget-sub">Список чатов</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button type="button" id="chat-widget-open-full" class="chat-widget-btn" title="Открыть страницу чата">↗</button>
+      <button type="button" id="chat-widget-close" class="chat-widget-btn" title="Закрыть">×</button>
+    </div>
+  </div>
+  <div class="chat-widget-body">
+    <div id="chat-widget-list" class="chat-widget-list open">
+      <div class="chat-widget-search">
+        <input id="chat-widget-q" type="text" placeholder="Поиск чата..." autocomplete="off" />
+      </div>
+      <div id="chat-widget-chats" class="chat-widget-chats"></div>
+    </div>
+    <div id="chat-widget-thread" class="chat-widget-thread">
+      <div id="chat-widget-messages" class="chat-widget-messages"></div>
+      <form id="chat-widget-form" class="chat-widget-input">
+        <input type="file" id="chat-widget-file" multiple accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" style="display:none" />
+        <input id="chat-widget-input" placeholder="Сообщение..." autocomplete="off" />
+        <button type="button" id="chat-widget-file-btn" title="Прикрепить файл">📎</button>
+        <button type="submit">Отпр.</button>
+      </form>
+    </div>
+  </div>
+</div>
 <script>
 (function() {
   const API = '/api';
@@ -1834,6 +1992,12 @@
     try {
       if (typeof connectChatWs === 'function') connectChatWs(currentChatId || 1);
     } catch (e) { console.warn('WebSocket chat:', e); }
+    // Инициализируем мини-чат (кнопка справа снизу)
+    try {
+      if (!showMain._chatWidgetInited && typeof initChatWidget === 'function') { initChatWidget(); showMain._chatWidgetInited = true; }
+      var fab = document.getElementById('chat-fab');
+      if (fab) fab.style.display = getToken() ? 'flex' : 'none';
+    } catch (_) {}
     // Загружаем данные дашборда при первом входе
     if (typeof switchView === 'function') switchView('dashboard');
   }
@@ -4241,6 +4405,43 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
   let chatWs = null;
   let chatReconnectTimer = null;
   let chatReconnectDelay = 2000;
+  const CHAT_UNREAD_KEY = 'crm_chat_unread';
+  function getUnreadMap() { try { return JSON.parse(localStorage.getItem(CHAT_UNREAD_KEY) || '{}') || {}; } catch(_) { return {}; } }
+  function setUnreadMap(m) { try { localStorage.setItem(CHAT_UNREAD_KEY, JSON.stringify(m || {})); } catch(_) {} }
+  function incUnread(chatId) {
+    var m = getUnreadMap();
+    var k = String(chatId || '');
+    if (!k) return;
+    m[k] = (m[k] || 0) + 1;
+    setUnreadMap(m);
+    updateFabUnread();
+    renderWidgetChats();
+  }
+  function clearUnread(chatId) {
+    var m = getUnreadMap();
+    var k = String(chatId || '');
+    if (m[k]) { delete m[k]; setUnreadMap(m); }
+    updateFabUnread();
+    renderWidgetChats();
+  }
+  function unreadTotal() {
+    var m = getUnreadMap();
+    var sum = 0;
+    Object.keys(m).forEach(function(k){ sum += (parseInt(m[k],10) || 0); });
+    return sum;
+  }
+  function updateFabUnread() {
+    var dot = document.getElementById('chat-fab-dot');
+    if (!dot) return;
+    var total = unreadTotal();
+    if (total > 0) {
+      dot.style.display = 'inline-flex';
+      dot.textContent = total > 9 ? '9+' : String(total);
+    } else {
+      dot.style.display = 'none';
+      dot.textContent = '';
+    }
+  }
 
   function appendChatMessage(content, senderName, createdAt) {
     var messagesEl = document.getElementById('chat-messages');
@@ -4272,7 +4473,15 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
         var me = getUser();
         var senderName = (m.sender && m.sender.full_name) ? m.sender.full_name : '';
         var fromOther = m.sender && me && m.sender.id !== me.id;
-        if (fromOther) playSound('receive');
+        if (fromOther) {
+          playSound('receive');
+          // если пользователь не в открытом виджете на этом чате — считаем непрочитанным
+          try {
+            if (!(widgetOpen && widgetChatId === chatId)) incUnread(chatId);
+          } catch (_) {}
+        } else {
+          try { clearUnread(chatId); } catch (_) {}
+        }
         appendChatMessage(content, senderName, m.created_at);
         if (fromOther && typeof window !== 'undefined' && window.Notification && window.Notification.permission === 'granted' && document.hidden) {
           try {
@@ -4419,6 +4628,289 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       }).catch(function(err) { alert(err.message); });
     }
   });
+
+  // ===== Мини-чат (плавающее окно) =====
+  let widgetOpen = false;
+  let widgetChatId = null;
+  let widgetWs = null;
+  let widgetReconnectTimer = null;
+  let widgetReconnectDelay = 2000;
+  let widgetChatsCache = [];
+
+  function setWidgetOpen(v) {
+    widgetOpen = !!v;
+    var fab = document.getElementById('chat-fab');
+    var w = document.getElementById('chat-widget');
+    if (!fab || !w) return;
+    if (widgetOpen) {
+      w.classList.add('open');
+      w.setAttribute('aria-hidden', 'false');
+      fab.style.display = 'flex';
+      // список чатов
+      openWidgetList();
+      loadWidgetChats();
+    } else {
+      w.classList.remove('open');
+      w.setAttribute('aria-hidden', 'true');
+      closeWidgetWs();
+    }
+  }
+  function openWidgetList() {
+    var list = document.getElementById('chat-widget-list');
+    var thread = document.getElementById('chat-widget-thread');
+    var backBtn = document.getElementById('chat-widget-back');
+    var h = document.getElementById('chat-widget-h');
+    var sub = document.getElementById('chat-widget-sub');
+    if (list) list.classList.add('open');
+    if (thread) thread.classList.remove('open');
+    if (backBtn) backBtn.style.display = 'none';
+    if (h) h.textContent = 'Чат';
+    if (sub) sub.textContent = 'Список чатов';
+    widgetChatId = null;
+    closeWidgetWs();
+  }
+  function openWidgetThread(chat) {
+    var list = document.getElementById('chat-widget-list');
+    var thread = document.getElementById('chat-widget-thread');
+    var backBtn = document.getElementById('chat-widget-back');
+    var h = document.getElementById('chat-widget-h');
+    var sub = document.getElementById('chat-widget-sub');
+    if (list) list.classList.remove('open');
+    if (thread) thread.classList.add('open');
+    if (backBtn) backBtn.style.display = '';
+    if (h) h.textContent = 'Чат';
+    if (sub) sub.textContent = (chat && (chat.name || chat.type)) ? (chat.name || chat.type) : 'Переписка';
+  }
+  function renderWidgetChats() {
+    var el = document.getElementById('chat-widget-chats');
+    var qEl = document.getElementById('chat-widget-q');
+    if (!el) return;
+    var q = (qEl && qEl.value) ? qEl.value.trim().toLowerCase() : '';
+    var list = widgetChatsCache || [];
+    if (q) list = list.filter(function(c){
+      var n = (c.name || c.type || '').toLowerCase();
+      return n.indexOf(q) !== -1;
+    });
+    if (!list.length) {
+      el.innerHTML = '<div class="chat-message-time">Чаты не найдены</div>';
+      return;
+    }
+    var um = getUnreadMap();
+    el.innerHTML = list.map(function(c){
+      var name = escapeHtml(c.name || c.type || ('Чат #' + c.id));
+      var metaLeft = c.type ? escapeHtml(c.type) : '';
+      var cnt = um[String(c.id)] ? (parseInt(um[String(c.id)],10) || 0) : 0;
+      var badge = cnt ? ('<span class="chat-widget-unread">'+(cnt > 9 ? '9+' : cnt)+'</span>') : '';
+      var meta = (metaLeft || badge) ? ('<div class="meta"><span>'+metaLeft+'</span>'+badge+'</div>') : '';
+      return '<div class="chat-widget-chat '+(widgetChatId===c.id?'active':'')+'" data-chat-id="'+c.id+'"><div class="name">'+name+'</div>'+meta+'</div>';
+    }).join('');
+    el.querySelectorAll('.chat-widget-chat').forEach(function(div){
+      div.addEventListener('click', function(){
+        var id = parseInt(div.getAttribute('data-chat-id')||'0',10);
+        if (!id) return;
+        widgetChatId = id;
+        try { clearUnread(id); } catch (_) {}
+        renderWidgetChats();
+        var chat = (widgetChatsCache || []).find(function(x){ return x.id === id; });
+        openWidgetThread(chat);
+        loadWidgetMessages(false);
+        connectWidgetWs(id);
+        updateFabUnread();
+      });
+    });
+  }
+  async function loadWidgetChats() {
+    try {
+      widgetChatsCache = await api('/chat/chats');
+    } catch (_) {
+      widgetChatsCache = [{ id: 1, name: 'Общий', type: 'general' }];
+    }
+    renderWidgetChats();
+  }
+  function renderWidgetMessages(list, appendToTop) {
+    var el = document.getElementById('chat-widget-messages');
+    if (!el) return;
+    var me = getUser();
+    var html = (list || []).map(function(m){
+      var isMe = me && m.sender && m.sender.id === me.id;
+      var sender = (m.sender && m.sender.full_name) ? m.sender.full_name : '';
+      var content = m.content != null ? String(m.content) : '';
+      var attHtml = (m.attachments && m.attachments.length) ? m.attachments.map(function(a){
+        var safe = (a.original_name||'').replace(/"/g,'&quot;');
+        return '<button type="button" class="chat-att-dl" style="margin-right:8px;font-size:12px;background:none;border:none;color:var(--accent);cursor:pointer;padding:0;" data-att-id="'+a.id+'" data-name="'+safe+'">📎 '+escapeHtml(a.original_name)+'</button>';
+      }).join('') : '';
+      var bubble = '<div class="chat-bubble '+(isMe?'me':'')+'"><div class="bubble">'+(isMe?'':('<strong>'+escapeHtml(sender)+':</strong> '))+escapeHtml(content)+(attHtml ? '<div style="margin-top:6px">'+attHtml+'</div>' : '')+'</div><div class="time">'+formatDate(m.created_at || new Date())+'</div></div>';
+      return bubble;
+    }).join('');
+    if (appendToTop) {
+      var prevScroll = el.scrollHeight;
+      el.insertAdjacentHTML('afterbegin', html);
+      // сохраняем положение примерно
+      el.scrollTop = el.scrollHeight - prevScroll;
+    } else {
+      el.innerHTML = html || '<div class="chat-message-time">Пока нет сообщений</div>';
+      el.scrollTop = el.scrollHeight;
+    }
+  }
+  async function loadWidgetMessages(append) {
+    if (!widgetChatId) return;
+    if (!loadWidgetMessages.offset) loadWidgetMessages.offset = 0;
+    if (!append) loadWidgetMessages.offset = 0;
+    var offset = loadWidgetMessages.offset || 0;
+    try {
+      var box = document.getElementById('chat-widget-messages');
+      var shouldStick = false;
+      if (box) {
+        // если пользователь внизу — после синка оставляем внизу
+        var dist = (box.scrollHeight - (box.scrollTop + box.clientHeight));
+        shouldStick = dist < 80;
+      }
+      var list = await api('/chat/chats/'+widgetChatId+'/messages?limit=50&offset='+offset);
+      loadWidgetMessages.offset = offset + list.length;
+      renderWidgetMessages(list, append);
+      if (!append && box && shouldStick) box.scrollTop = box.scrollHeight;
+    } catch (_) {
+      var el = document.getElementById('chat-widget-messages');
+      if (el && !append) el.innerHTML = '<div class="msg err">Не удалось загрузить сообщения</div>';
+    }
+  }
+  function closeWidgetWs() {
+    if (widgetReconnectTimer) { clearTimeout(widgetReconnectTimer); widgetReconnectTimer = null; }
+    if (widgetWs) { try { widgetWs.close(); } catch(_) {} widgetWs = null; }
+  }
+  function connectWidgetWs(chatId) {
+    closeWidgetWs();
+    var token = getToken();
+    if (!token) return;
+    var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var url = proto + '//' + location.host + '/ws/chat/' + chatId + '?token=' + encodeURIComponent(token);
+    var ws = new WebSocket(url);
+    widgetWs = ws;
+    ws.onopen = function(){ widgetReconnectDelay = 2000; };
+    ws.onmessage = function(ev){
+      try {
+        var m = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+        var content = m.content != null ? m.content : (m.message != null ? m.message : m.text);
+        if (content == null) content = '';
+        var me = getUser();
+        var senderName = (m.sender && m.sender.full_name) ? m.sender.full_name : '';
+        var fromOther = m.sender && me && m.sender.id !== me.id;
+        if (fromOther) {
+          playSound('receive');
+          if (!widgetOpen || (widgetChatId !== chatId)) incUnread(chatId);
+        }
+        // добавляем в виджет, только если открыт нужный чат
+        if (widgetOpen && widgetChatId === chatId) {
+          try { clearUnread(chatId); } catch (_) {}
+          var box = document.getElementById('chat-widget-messages');
+          if (box) {
+            var isMe = me && m.sender && m.sender.id === me.id;
+            var bubble = '<div class="chat-bubble '+(isMe?'me':'')+'"><div class="bubble">'+(isMe?'':('<strong>'+escapeHtml(senderName)+':</strong> '))+escapeHtml(String(content))+'</div><div class="time">'+formatDate(m.created_at || new Date())+'</div></div>';
+            box.insertAdjacentHTML('beforeend', bubble);
+            box.scrollTop = box.scrollHeight;
+          }
+          // подтянуть актуальные данные (в т.ч. вложения) после прихода сообщения
+          try {
+            clearTimeout(connectWidgetWs._syncT);
+            connectWidgetWs._syncT = setTimeout(function(){
+              if (widgetOpen && widgetChatId === chatId) loadWidgetMessages(false);
+            }, 600);
+          } catch (_) {}
+        }
+      } catch(_) {}
+    };
+    ws.onclose = function(){
+      widgetWs = null;
+      if (!getToken() || !widgetChatId) return;
+      widgetReconnectTimer = setTimeout(function(){ connectWidgetWs(widgetChatId); }, widgetReconnectDelay);
+      if (widgetReconnectDelay < 30000) widgetReconnectDelay = Math.min(widgetReconnectDelay + 2000, 30000);
+    };
+    ws.onerror = function(){};
+  }
+
+  function initChatWidget() {
+    var fab = document.getElementById('chat-fab');
+    var closeBtn = document.getElementById('chat-widget-close');
+    var backBtn = document.getElementById('chat-widget-back');
+    var openFullBtn = document.getElementById('chat-widget-open-full');
+    var qEl = document.getElementById('chat-widget-q');
+    var form = document.getElementById('chat-widget-form');
+    var input = document.getElementById('chat-widget-input');
+    if (!fab) return;
+    fab.style.display = getToken() ? 'flex' : 'none';
+    updateFabUnread();
+    fab.addEventListener('click', function(){
+      setWidgetOpen(!widgetOpen);
+    });
+    if (closeBtn) closeBtn.addEventListener('click', function(){ setWidgetOpen(false); });
+    if (backBtn) backBtn.addEventListener('click', function(){ openWidgetList(); });
+    if (openFullBtn) openFullBtn.addEventListener('click', function(){
+      // открываем основной чат
+      try { showView('chat'); } catch (_) {}
+      setWidgetOpen(false);
+    });
+    if (qEl) qEl.addEventListener('input', function(){ renderWidgetChats(); });
+    var fileBtn = document.getElementById('chat-widget-file-btn');
+    var fileInput = document.getElementById('chat-widget-file');
+    if (fileBtn && fileInput) fileBtn.addEventListener('click', function(){ fileInput.click(); });
+    // скачивание вложений в мини-чате
+    var msgBox = document.getElementById('chat-widget-messages');
+    if (msgBox && !msgBox._attInited) {
+      msgBox._attInited = true;
+      msgBox.addEventListener('click', function(e){
+        var dl = e.target && e.target.closest ? e.target.closest('.chat-att-dl') : null;
+        if (!dl) return;
+        var aid = dl.getAttribute('data-att-id');
+        var name = dl.getAttribute('data-name') || 'file';
+        fetch(API+'/attachments/'+aid+'/download', { headers: { 'Authorization': 'Bearer '+getToken() } })
+          .then(function(r){ return r.blob(); })
+          .then(function(blob){
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = name;
+            a.click();
+            URL.revokeObjectURL(url);
+          });
+      });
+    }
+    if (form) form.addEventListener('submit', function(e){
+      e.preventDefault();
+      if (!widgetChatId) return;
+      var text = (input && input.value) ? input.value.trim() : '';
+      var files = fileInput && fileInput.files && fileInput.files.length ? Array.from(fileInput.files) : [];
+      if (!text && !files.length) return;
+      // если есть файлы — создаём сообщение через REST, потом грузим файлы к нему
+      if (files.length) {
+        api('/chat/chats/'+widgetChatId+'/messages', { method: 'POST', body: JSON.stringify({ content: text || ' ' }) }).then(function(msg){
+          var uploads = files.map(function(file){
+            var fd = new FormData();
+            fd.append('file', file);
+            return fetch(API+'/attachments/message/'+msg.id, { method:'POST', headers: { 'Authorization': 'Bearer '+getToken() }, body: fd }).catch(function(){});
+          });
+          Promise.all(uploads).then(function(){
+            if (input) input.value = '';
+            if (fileInput) fileInput.value = '';
+            loadWidgetMessages(false);
+            playSound('send');
+          });
+        }).catch(function(err){ alert(err.message); });
+        return;
+      }
+      // без файлов: WS или REST
+      if (widgetWs && widgetWs.readyState === WebSocket.OPEN) {
+        widgetWs.send(JSON.stringify({ content: text }));
+        if (input) input.value = '';
+        playSound('send');
+      } else {
+        api('/chat/chats/'+widgetChatId+'/messages', { method: 'POST', body: JSON.stringify({ content: text }) }).then(function(){
+          if (input) input.value = '';
+          loadWidgetMessages(false);
+          playSound('send');
+        }).catch(function(err){ alert(err.message); });
+      }
+    });
+  }
 
   function escapeHtml(s) {
     if (s == null) return '';
