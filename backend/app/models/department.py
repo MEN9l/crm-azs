@@ -12,6 +12,8 @@ class Department(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     name: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     parent_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id"), nullable=True)
+    pos_x: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    pos_y: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     parent = relationship("Department", remote_side=[id], backref="children")

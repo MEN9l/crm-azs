@@ -190,6 +190,7 @@
     .org-node-title { font-weight: 800; font-size: 14px; color: var(--text); line-height: 1.25; }
     .org-node-sub { margin-top: 6px; font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; gap: 8px; }
     .org-node-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .org-node.dragging { cursor: grabbing; user-select: none; }
     .org-btn {
       border: 1px solid var(--border-subtle);
       background: var(--input-bg);
@@ -1011,6 +1012,7 @@
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
                 <button type="button" class="btn-secondary" id="departments-mode-tree">Список</button>
                 <button type="button" class="btn-secondary" id="departments-mode-chart">Схема</button>
+                <button type="button" class="btn-secondary" id="departments-sample">Заполнить пример</button>
                 <button type="button" class="btn-secondary" id="departments-refresh">Обновить</button>
               </div>
             </div>
@@ -1780,6 +1782,22 @@
       node.appendChild(title);
       node.appendChild(sub);
 
+      // apply saved position (server -> fallback local)
+      (function(){
+        var x = (typeof dep.pos_x === 'number') ? dep.pos_x : null;
+        var y = (typeof dep.pos_y === 'number') ? dep.pos_y : null;
+        if (x == null || y == null) {
+          try {
+            var saved = localStorage.getItem('dept_pos_' + dep.id);
+            if (saved) {
+              var p = JSON.parse(saved);
+              if (p && typeof p.x === 'number' && typeof p.y === 'number') { x = p.x; y = p.y; }
+            }
+          } catch (_) {}
+        }
+        if (typeof x === 'number' && typeof y === 'number') node.style.transform = 'translate(' + x + 'px, ' + y + 'px)';
+      })();
+
       if (canManage) {
         var actions = document.createElement('div');
         actions.className = 'org-node-actions';
@@ -1836,6 +1854,78 @@
         renderDepartmentsChart();
       });
 
+      // draggable (save to server + local fallback)
+      (function(){
+        var startX = 0, startY = 0, baseX = 0, baseY = 0;
+        var dragging = false;
+        var saveTimer = null;
+        function getCurrent() {
+          var x = (typeof dep.pos_x === 'number') ? dep.pos_x : null;
+          var y = (typeof dep.pos_y === 'number') ? dep.pos_y : null;
+          if (x == null || y == null) {
+            try {
+              var saved = localStorage.getItem('dept_pos_' + dep.id);
+              if (saved) {
+                var p = JSON.parse(saved);
+                if (p && typeof p.x === 'number' && typeof p.y === 'number') return { x: p.x, y: p.y };
+              }
+            } catch (_) {}
+            return { x: 0, y: 0 };
+          }
+          return { x: x, y: y };
+        }
+        function persist(nx, ny) {
+          dep.pos_x = nx;
+          dep.pos_y = ny;
+          try { localStorage.setItem('dept_pos_' + dep.id, JSON.stringify({ x: nx, y: ny })); } catch(_) {}
+          if (saveTimer) clearTimeout(saveTimer);
+          saveTimer = setTimeout(function(){
+            api('/departments/' + dep.id, { method:'PATCH', body: JSON.stringify({ pos_x: nx, pos_y: ny }) })
+              .catch(function(){ /* ignore */ });
+          }, 250);
+        }
+        function onDown(e) {
+          // don't start drag from buttons
+          if (e.target && (e.target.closest && e.target.closest('button'))) return;
+          dragging = true;
+          node.classList.add('dragging');
+          var cur = getCurrent();
+          baseX = cur.x; baseY = cur.y;
+          startX = (e.clientX != null ? e.clientX : (e.touches && e.touches[0] && e.touches[0].clientX)) || 0;
+          startY = (e.clientY != null ? e.clientY : (e.touches && e.touches[0] && e.touches[0].clientY)) || 0;
+          try { node.setPointerCapture && node.setPointerCapture(e.pointerId); } catch(_) {}
+          e.preventDefault();
+        }
+        function onMove(e) {
+          if (!dragging) return;
+          var cx = (e.clientX != null ? e.clientX : (e.touches && e.touches[0] && e.touches[0].clientX)) || 0;
+          var cy = (e.clientY != null ? e.clientY : (e.touches && e.touches[0] && e.touches[0].clientY)) || 0;
+          var dx = cx - startX;
+          var dy = cy - startY;
+          var nx = baseX + dx;
+          var ny = baseY + dy;
+          node.style.transform = 'translate(' + nx + 'px, ' + ny + 'px)';
+          persist(nx, ny);
+        }
+        function onUp() {
+          if (!dragging) return;
+          dragging = false;
+          node.classList.remove('dragging');
+          // final persist already done in move; ensure once if user just clicked
+          var tr = node.style.transform || '';
+          var m = tr.match(/translate\(([-0-9.]+)px,\s*([-0-9.]+)px\)/);
+          if (m) persist(parseFloat(m[1]), parseFloat(m[2]));
+        }
+        node.addEventListener('pointerdown', onDown);
+        node.addEventListener('pointermove', onMove);
+        node.addEventListener('pointerup', onUp);
+        node.addEventListener('pointercancel', onUp);
+        // fallback touch
+        node.addEventListener('touchstart', onDown, { passive: false });
+        node.addEventListener('touchmove', onMove, { passive: false });
+        node.addEventListener('touchend', onUp);
+      })();
+
       wrap.appendChild(node);
 
       var children = byParent[String(dep.id)] || [];
@@ -1877,6 +1967,49 @@
       topWrap.appendChild(row);
       rootEl.appendChild(topWrap);
     }
+  }
+
+  async function createDepartmentsSample() {
+    var u = getUser();
+    if (!u || (u.role !== 'admin' && u.role !== 'chief')) { alert('Недостаточно прав'); return; }
+    var deps = departmentsState.deps || [];
+    if (deps.length) { if (!confirm('Отделы уже существуют. Создать пример всё равно (добавятся новые)?')) return; }
+
+    var byName = {};
+    async function ensure(name, parentName) {
+      if (byName[name]) return byName[name];
+      // already exists in db?
+      var exists = (departmentsState.deps || []).find(function(d){ return (d.name||'').trim().toLowerCase() === name.trim().toLowerCase(); });
+      if (exists) { byName[name] = exists.id; return exists.id; }
+      var payload = { name: name };
+      if (parentName) {
+        var pid = await ensure(parentName, null);
+        payload.parent_id = pid;
+      }
+      var created = await api('/departments', { method:'POST', body: JSON.stringify(payload) });
+      byName[name] = created.id;
+      return created.id;
+    }
+
+    // Root + structure
+    await ensure('Генеральный директор', null);
+    await ensure('Операционный директор', 'Генеральный директор');
+    await ensure('Финансы и бухгалтерия', 'Генеральный директор');
+    await ensure('ИТ', 'Генеральный директор');
+    await ensure('HR', 'Генеральный директор');
+    await ensure('Безопасность', 'Генеральный директор');
+    await ensure('Сервис АЗС', 'Операционный директор');
+    await ensure('Логистика', 'Операционный директор');
+    await ensure('Закупки', 'Операционный директор');
+    await ensure('Поддержка 1 линия', 'ИТ');
+    await ensure('Поддержка 2 линия', 'ИТ');
+    await ensure('Инфраструктура', 'ИТ');
+    await ensure('Расчёт зарплаты', 'Финансы и бухгалтерия');
+    await ensure('Кассовая дисциплина', 'Финансы и бухгалтерия');
+
+    await loadDepartmentsPage(true);
+    showDeptMsg('ok', 'Пример иерархии создан');
+    switchDepartmentsMode('chart');
   }
 
   function switchDepartmentsMode(mode) {
@@ -1997,6 +2130,11 @@
   }
   if (document.getElementById('departments-mode-chart')) {
     document.getElementById('departments-mode-chart').addEventListener('click', function(){ switchDepartmentsMode('chart'); });
+  }
+  if (document.getElementById('departments-sample')) {
+    document.getElementById('departments-sample').addEventListener('click', function(){
+      createDepartmentsSample().catch(function(e){ alert(e.message || 'Ошибка'); });
+    });
   }
   if (document.getElementById('dept-new-create')) {
     document.getElementById('dept-new-create').addEventListener('click', function(){

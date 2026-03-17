@@ -6,6 +6,8 @@ from pydantic import BaseModel
 class DepartmentBase(BaseModel):
     name: str
     parent_id: int | None = None
+    pos_x: int | None = None
+    pos_y: int | None = None
 
 
 class DepartmentCreate(DepartmentBase):
@@ -15,6 +17,8 @@ class DepartmentCreate(DepartmentBase):
 class DepartmentUpdate(BaseModel):
     name: str | None = None
     parent_id: int | None = None
+    pos_x: int | None = None
+    pos_y: int | None = None
 
 
 class DepartmentResponse(DepartmentBase):

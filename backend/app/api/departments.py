@@ -79,6 +79,10 @@ def update_department(
             if not parent:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Родительский отдел не найден")
         dep.parent_id = pid
+    if "pos_x" in updates:
+        dep.pos_x = updates["pos_x"]
+    if "pos_y" in updates:
+        dep.pos_y = updates["pos_y"]
     db.commit()
     db.refresh(dep)
     return dep
