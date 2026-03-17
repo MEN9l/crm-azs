@@ -4524,7 +4524,8 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     ws.onclose = function() {
       chatWs = null;
       if (!getToken()) return;
-      chatReconnectTimer = setTimeout(function() { connectChatWs(currentChatId || 1); }, chatReconnectDelay);
+      // не падаем на id=1: переподключаемся только если текущий чат известен
+      chatReconnectTimer = setTimeout(function() { if (currentChatId) connectChatWs(currentChatId); }, chatReconnectDelay);
       if (chatReconnectDelay < 30000) chatReconnectDelay = Math.min(chatReconnectDelay + 2000, 30000);
     };
     ws.onerror = function() {};
@@ -4558,10 +4559,9 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       connectChatWs(currentChatId);
       loadChatMembers(currentChatId);
     } catch (_) {
-      channelsEl.innerHTML = '<li class="active" data-id="1">Общий</li>';
-      loadChatMessages();
-      connectChatWs(currentChatId);
-      loadChatMembers(currentChatId);
+      channelsEl.innerHTML = '<li class="active">Не удалось загрузить список чатов</li>';
+      messagesEl.innerHTML = '<div class="msg err">Не удалось загрузить список чатов. Проверьте соединение и обновите страницу.</div>';
+      return;
     }
   }
   async function loadChatMembers(chatId) {
