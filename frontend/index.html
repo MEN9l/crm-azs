@@ -91,10 +91,51 @@
       color: var(--text-muted);
       cursor: pointer;
       font-weight: 500;
-      transition: background var(--transition), color var(--transition);
+      transition: background var(--transition), color var(--transition), transform 0.12s ease, border-color var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      position: relative;
+      border: 1px solid transparent;
     }
-    .sidebar-link:hover { color: var(--text); background: var(--border-subtle); }
-    .sidebar-link.active { background: var(--accent-soft); color: var(--accent); }
+    .sidebar-link::before {
+      content: "";
+      position: absolute;
+      left: -10px;
+      top: 8px;
+      bottom: 8px;
+      width: 3px;
+      border-radius: 999px;
+      background: transparent;
+      transition: background var(--transition), opacity var(--transition), transform 0.2s ease;
+      opacity: 0;
+      transform: translateX(-4px);
+    }
+    .sidebar-link:hover { color: var(--text); background: rgba(148,163,184,0.10); border-color: rgba(148,163,184,0.18); transform: translateX(2px); }
+    .sidebar-link:active { transform: translateX(1px) scale(0.99); }
+    .sidebar-link.active { background: var(--accent-soft); color: var(--accent); border-color: rgba(14,165,233,0.25); }
+    .sidebar-link.active::before { background: var(--accent); opacity: 1; transform: translateX(0); }
+    .sidebar-ico {
+      width: 32px;
+      height: 32px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background: rgba(148,163,184,0.10);
+      border: 1px solid rgba(148,163,184,0.16);
+      color: var(--text-muted);
+      transition: background var(--transition), border-color var(--transition), color var(--transition), transform 0.2s ease;
+      font-size: 16px;
+      line-height: 1;
+    }
+    .sidebar-link:hover .sidebar-ico { color: var(--text); background: rgba(148,163,184,0.14); border-color: rgba(148,163,184,0.22); transform: translateY(-1px); }
+    .sidebar-link.active .sidebar-ico { color: var(--accent); background: rgba(14,165,233,0.16); border-color: rgba(14,165,233,0.30); }
+    .sidebar-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .sidebar-title { font-weight: 650; font-size: 14px; color: inherit; line-height: 1.2; }
+    .sidebar-sub { font-size: 12px; color: var(--text-muted); line-height: 1.2; }
+    .sidebar-link.active .sidebar-sub { color: rgba(14,165,233,0.85); }
     .layout-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow-x: hidden; }
     .topbar {
       display: flex;
@@ -944,12 +985,30 @@
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-logo">CRM АЗС</div>
       <nav class="sidebar-nav">
-        <div class="sidebar-link active" data-view="dashboard">Главная</div>
-        <div class="sidebar-link" data-view="tickets">Заявки</div>
-        <div class="sidebar-link" data-view="tasks">Задачи</div>
-        <div class="sidebar-link" data-view="chat">Чат</div>
-        <div class="sidebar-link" data-view="departments" id="sidebar-departments-link" style="display:none;">Отделы</div>
-        <div class="sidebar-link" data-view="users" id="sidebar-users-link" style="display:none;">Пользователи</div>
+        <div class="sidebar-link active" data-view="dashboard">
+          <span class="sidebar-ico" aria-hidden="true">🏠</span>
+          <span class="sidebar-text"><span class="sidebar-title">Главная</span><span class="sidebar-sub">Обзор</span></span>
+        </div>
+        <div class="sidebar-link" data-view="tickets">
+          <span class="sidebar-ico" aria-hidden="true">🧾</span>
+          <span class="sidebar-text"><span class="sidebar-title">Заявки</span><span class="sidebar-sub">Список и фильтры</span></span>
+        </div>
+        <div class="sidebar-link" data-view="tasks">
+          <span class="sidebar-ico" aria-hidden="true">✅</span>
+          <span class="sidebar-text"><span class="sidebar-title">Задачи</span><span class="sidebar-sub">Kanban</span></span>
+        </div>
+        <div class="sidebar-link" data-view="chat">
+          <span class="sidebar-ico" aria-hidden="true">💬</span>
+          <span class="sidebar-text"><span class="sidebar-title">Чат</span><span class="sidebar-sub">Команды</span></span>
+        </div>
+        <div class="sidebar-link" data-view="departments" id="sidebar-departments-link" style="display:none;">
+          <span class="sidebar-ico" aria-hidden="true">🏢</span>
+          <span class="sidebar-text"><span class="sidebar-title">Отделы</span><span class="sidebar-sub">Иерархия</span></span>
+        </div>
+        <div class="sidebar-link" data-view="users" id="sidebar-users-link" style="display:none;">
+          <span class="sidebar-ico" aria-hidden="true">👥</span>
+          <span class="sidebar-text"><span class="sidebar-title">Пользователи</span><span class="sidebar-sub">Роли и отделы</span></span>
+        </div>
       </nav>
     </aside>
     <div class="layout-main">
