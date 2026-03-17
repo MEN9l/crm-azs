@@ -197,39 +197,74 @@
       transition: border-color var(--transition), box-shadow var(--transition);
     }
     .dept-assign-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-    .dept-select-wrap {
+    .dept-combo {
       position: relative;
       width: 100%;
     }
-    .dept-select-wrap::before {
-      content: "👤";
+    .dept-combo-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+    }
+    .dept-combo-btn:hover { border-color: rgba(14,165,233,0.55); }
+    .dept-combo-btn:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .dept-combo-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .dept-combo-ico { width: 28px; height: 28px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-weight: 800; }
+    .dept-combo-text { min-width: 0; }
+    .dept-combo-title { font-weight: 700; font-size: 13px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dept-combo-sub { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .dept-combo-caret { color: var(--text-muted); font-size: 14px; flex-shrink: 0; }
+    .dept-combo-pop {
       position: absolute;
-      left: 10px;
-      top: 50%;
-      transform: translateY(-50%);
+      left: 0;
+      right: 0;
+      top: calc(100% + 8px);
+      border-radius: 14px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      box-shadow: 0 18px 44px rgba(0,0,0,0.25);
+      z-index: 20;
+      overflow: hidden;
+      display: none;
+    }
+    .dept-combo.open .dept-combo-pop { display: block; }
+    .dept-combo-pop-head { padding: 10px; border-bottom: 1px solid var(--border-subtle); background: rgba(0,0,0,0.06); }
+    body.theme-light .dept-combo-pop-head { background: rgba(2,132,199,0.04); }
+    .dept-combo-pop-search {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: var(--text);
       font-size: 14px;
-      opacity: 0.75;
-      pointer-events: none;
     }
-    .dept-select-wrap::after {
-      content: "▾";
-      position: absolute;
-      right: 10px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-muted);
-      pointer-events: none;
+    .dept-combo-pop-search:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .dept-combo-pop-list { max-height: 260px; overflow: auto; padding: 6px; }
+    .dept-combo-item {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 10px 10px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition);
+      border: 1px solid transparent;
     }
-    .dept-select-wrap select {
-      appearance: none;
-      -webkit-appearance: none;
-      -moz-appearance: none;
-      padding-left: 34px !important;
-      padding-right: 30px !important;
-      border-radius: 12px !important;
-      transition: border-color var(--transition), box-shadow var(--transition);
-    }
-    .dept-select-wrap select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .dept-combo-item:hover { background: var(--accent-soft); border-color: rgba(14,165,233,0.25); }
+    .dept-combo-item.active { background: var(--accent-soft); border-color: rgba(14,165,233,0.45); }
+    .dept-combo-item .t1 { font-weight: 700; font-size: 13px; }
+    .dept-combo-item .t2 { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .dept-combo-empty { padding: 12px; color: var(--text-muted); font-size: 13px; }
 
     .org-chart { margin-top: 10px; overflow: hidden; padding: 0; position: relative; min-height: 62vh; border-radius: 16px; border: 1px solid var(--border-subtle); background: radial-gradient(ellipse 120% 80% at 50% 0%, rgba(14,165,233,0.08), transparent 55%), rgba(0,0,0,0.04); }
     body.theme-light .org-chart { background: radial-gradient(ellipse 120% 80% at 50% 0%, rgba(2,132,199,0.10), transparent 55%), rgba(2,132,199,0.03); }
@@ -1191,9 +1226,23 @@
                             <div class="dept-assign-hint">Выберите сотрудника и нажмите «Назначить»</div>
                           </div>
                           <div class="dept-assign-select">
-                            <input type="text" id="dept-add-user-search" class="dept-assign-input" placeholder="Быстрый поиск по ФИО или email…" />
-                            <div class="dept-select-wrap" style="margin-top:8px;">
-                              <select id="dept-add-user"></select>
+                            <div class="dept-combo" id="dept-user-combo" data-selected-id="">
+                              <button type="button" class="dept-combo-btn" id="dept-user-combo-btn">
+                                <div class="dept-combo-left">
+                                  <div class="dept-combo-ico">👤</div>
+                                  <div class="dept-combo-text">
+                                    <div class="dept-combo-title" id="dept-user-combo-title">Выберите сотрудника</div>
+                                    <div class="dept-combo-sub" id="dept-user-combo-sub">Можно искать по ФИО или email</div>
+                                  </div>
+                                </div>
+                                <div class="dept-combo-caret">▾</div>
+                              </button>
+                              <div class="dept-combo-pop" id="dept-user-combo-pop" role="dialog" aria-label="Выбор сотрудника">
+                                <div class="dept-combo-pop-head">
+                                  <input type="text" id="dept-user-combo-search" class="dept-combo-pop-search" placeholder="Быстрый поиск…" />
+                                </div>
+                                <div class="dept-combo-pop-list" id="dept-user-combo-list"></div>
+                              </div>
                             </div>
                           </div>
                           <button type="button" class="btn-secondary" id="dept-add-user-btn">Назначить</button>
@@ -2530,34 +2579,107 @@
       });
     }
 
-    var addSel = document.getElementById('dept-add-user');
-    var searchEl = document.getElementById('dept-add-user-search');
-    if (addSel) {
+    // красивый "селект" назначения сотрудника
+    var combo = document.getElementById('dept-user-combo');
+    var btn = document.getElementById('dept-user-combo-btn');
+    var pop = document.getElementById('dept-user-combo-pop');
+    var listEl = document.getElementById('dept-user-combo-list');
+    var searchEl = document.getElementById('dept-user-combo-search');
+    var titleEl = document.getElementById('dept-user-combo-title');
+    var subEl = document.getElementById('dept-user-combo-sub');
+    if (combo && btn && pop && listEl && searchEl && titleEl && subEl) {
       var baseCandidates = (departmentsState.users || []).filter(function(u){ return u.department_id !== selId; });
-      addSel._candidates = baseCandidates;
-      function renderCandidates(list) {
-        addSel.innerHTML = '<option value="">— выбрать сотрудника</option>' + list.map(function(u){
-          var deptName = '';
-          if (u.department_id) {
-            var d2 = (departmentsState.deps || []).find(function(d){ return d.id === u.department_id; });
-            deptName = d2 ? (' · ' + d2.name) : '';
-          }
-          return '<option value="'+u.id+'">'+escapeHtml(u.full_name + ' ('+u.email+')' + deptName)+'</option>';
+      combo._candidates = baseCandidates;
+      combo._filtered = baseCandidates;
+      combo._activeIndex = -1;
+      combo.dataset.selectedId = '';
+      titleEl.textContent = 'Выберите сотрудника';
+      subEl.textContent = 'Можно искать по ФИО или email';
+
+      function close() { combo.classList.remove('open'); }
+      function open() { combo.classList.add('open'); searchEl.focus(); }
+      function setActive(idx) {
+        var items = listEl.querySelectorAll('.dept-combo-item[data-uid]');
+        if (!items.length) { combo._activeIndex = -1; return; }
+        idx = Math.max(0, Math.min(items.length - 1, idx));
+        combo._activeIndex = idx;
+        items.forEach(function(el, i){ el.classList.toggle('active', i === idx); });
+        try { items[idx].scrollIntoView({ block: 'nearest' }); } catch (_) {}
+      }
+      function selectByIndex(idx) {
+        var items = listEl.querySelectorAll('.dept-combo-item[data-uid]');
+        if (!items.length) return;
+        idx = Math.max(0, Math.min(items.length - 1, idx));
+        var uid = items[idx].getAttribute('data-uid');
+        var u = (combo._filtered || baseCandidates).find(function(x){ return String(x.id) === String(uid); });
+        if (!u) return;
+        combo.dataset.selectedId = String(u.id);
+        titleEl.textContent = u.full_name || '—';
+        subEl.textContent = u.email || '';
+        close();
+      }
+      function render(items) {
+        combo._filtered = items;
+        if (!items.length) { listEl.innerHTML = '<div class="dept-combo-empty">Ничего не найдено</div>'; combo._activeIndex = -1; return; }
+        listEl.innerHTML = items.map(function(u){
+          return (
+            '<div class="dept-combo-item" data-uid="'+u.id+'">' +
+              '<div style="width:28px;height:28px;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0;">' +
+                escapeHtml(((u.full_name||'?').trim().charAt(0) || '?').toUpperCase()) +
+              '</div>' +
+              '<div style="min-width:0;">' +
+                '<div class="t1">' + escapeHtml(u.full_name || '') + '</div>' +
+                '<div class="t2">' + escapeHtml(u.email || '') + '</div>' +
+              '</div>' +
+            '</div>'
+          );
         }).join('');
-      }
-      renderCandidates(baseCandidates);
-      if (searchEl) {
-        searchEl.value = '';
-        searchEl.oninput = function() {
-          var q = (searchEl.value || '').trim().toLowerCase();
-          if (!q) { renderCandidates(baseCandidates); return; }
-          var filtered = baseCandidates.filter(function(u){
-            var s = ((u.full_name||'') + ' ' + (u.email||'')).toLowerCase();
-            return s.indexOf(q) !== -1;
+        listEl.querySelectorAll('.dept-combo-item[data-uid]').forEach(function(it){
+          it.addEventListener('click', function(){
+            var uid = it.getAttribute('data-uid');
+            var u = baseCandidates.find(function(x){ return String(x.id) === String(uid); });
+            if (!u) return;
+            combo.dataset.selectedId = String(u.id);
+            titleEl.textContent = u.full_name || '—';
+            subEl.textContent = u.email || '';
+            close();
           });
-          renderCandidates(filtered);
-        };
+        });
+        // reset active item on each render
+        setActive(0);
       }
+
+      render(baseCandidates);
+      searchEl.value = '';
+      searchEl.oninput = function() {
+        var q = (searchEl.value || '').trim().toLowerCase();
+        if (!q) { render(baseCandidates); return; }
+        render(baseCandidates.filter(function(u){
+          var s = ((u.full_name||'') + ' ' + (u.email||'')).toLowerCase();
+          return s.indexOf(q) !== -1;
+        }));
+      };
+
+      btn.onclick = function(){
+        if (combo.classList.contains('open')) close(); else { open(); setTimeout(function(){ setActive(0); }, 0); }
+      };
+      btn.onkeydown = function(e){
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (combo.classList.contains('open')) close(); else open(); }
+        if (e.key === 'ArrowDown') { e.preventDefault(); open(); setTimeout(function(){ setActive(0); }, 0); }
+      };
+      // закрытие по клику вне
+      document.addEventListener('click', function onDoc(e){
+        if (!combo.isConnected) { document.removeEventListener('click', onDoc); return; }
+        if (combo.contains(e.target)) return;
+        close();
+      });
+      // esc
+      searchEl.onkeydown = function(e){
+        if (e.key === 'Escape') { e.preventDefault(); close(); return; }
+        if (e.key === 'ArrowDown') { e.preventDefault(); setActive((combo._activeIndex < 0 ? 0 : combo._activeIndex + 1)); return; }
+        if (e.key === 'ArrowUp') { e.preventDefault(); setActive((combo._activeIndex < 0 ? 0 : combo._activeIndex - 1)); return; }
+        if (e.key === 'Enter') { e.preventDefault(); selectByIndex(combo._activeIndex < 0 ? 0 : combo._activeIndex); return; }
+      };
     }
   }
 
@@ -2655,8 +2777,9 @@
     document.getElementById('dept-add-user-btn').addEventListener('click', function(){
       var id = departmentsState.selectedId;
       if (!id) return;
-      var uid = document.getElementById('dept-add-user').value;
-      if (!uid) return;
+      var combo = document.getElementById('dept-user-combo');
+      var uid = combo && combo.dataset ? combo.dataset.selectedId : '';
+      if (!uid) { alert('Выберите сотрудника'); return; }
       api('/users/'+parseInt(uid,10), { method:'PATCH', body: JSON.stringify({ department_id: id }) })
         .then(function(){ loadDepartmentsPage(true); })
         .catch(function(e){ alert(e.message); });
