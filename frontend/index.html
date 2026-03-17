@@ -1988,9 +1988,21 @@
     loadNotificationCount();
     if (notificationPollInterval) clearInterval(notificationPollInterval);
     notificationPollInterval = setInterval(loadNotificationCount, 45000);
-    // Подключаем WebSocket к общему чату сразу после входа (не ломаем страницу при ошибке)
+    // Подключаем WebSocket к первому доступному чату (не обязательно id=1)
     try {
-      if (typeof connectChatWs === 'function') connectChatWs(currentChatId || 1);
+      if (!showMain._chatBgInited) {
+        showMain._chatBgInited = true;
+        (async function(){
+          try {
+            var chats = await api('/chat/chats');
+            if (Array.isArray(chats) && chats.length) {
+              var ids = chats.map(function(c){ return c.id; });
+              if (!currentChatId || ids.indexOf(currentChatId) === -1) currentChatId = chats[0].id;
+              connectChatWs(currentChatId);
+            }
+          } catch (e2) { console.warn('Chat init:', e2); }
+        })();
+      }
     } catch (e) { console.warn('WebSocket chat:', e); }
     // Инициализируем мини-чат (кнопка справа снизу)
     try {
@@ -4505,6 +4517,10 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     const messagesEl = document.getElementById('chat-messages');
     try {
       const chats = await api('/chat/chats');
+      if (Array.isArray(chats) && chats.length) {
+        var ids = chats.map(function(c){ return c.id; });
+        if (!currentChatId || ids.indexOf(currentChatId) === -1) currentChatId = chats[0].id;
+      }
       channelsEl.innerHTML = chats.map(c => '<li data-id="'+c.id+'" class="'+(c.id===currentChatId?'active':'')+'">'+(c.name||c.type)+'</li>').join('');
       channelsEl.querySelectorAll('li').forEach(li => {
         li.addEventListener('click', () => {
@@ -4615,8 +4631,6 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
         Promise.all(uploads).then(function() { input.value = ''; fileInput.value = ''; loadChatMessages(); playSound('send'); });
       }).catch(function(err) { alert(err.message); });
     } else if (chatWs && chatWs.readyState === WebSocket.OPEN) {
-      var me = getUser();
-      appendChatMessage(text, me ? me.full_name : '', new Date());
       chatWs.send(JSON.stringify({ content: text }));
       input.value = '';
       playSound('send');
