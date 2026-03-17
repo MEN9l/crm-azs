@@ -512,6 +512,35 @@
     .ticket-meta-k { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
     .ticket-meta-v { font-size: 14px; color: var(--text); font-weight: 600; }
     @media (max-width: 560px) { .ticket-meta { grid-template-columns: 1fr; } }
+    .modal-compact { max-width: 620px; padding: 18px; }
+    .modal-header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .modal-title-block { min-width: 0; }
+    .modal-title-block h3 { margin: 0; }
+    .modal-subtitle { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .modal-close-x { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border-subtle); background: var(--input-bg); color: var(--text-muted); cursor: pointer; flex-shrink: 0; }
+    .modal-close-x:hover { background: var(--border-subtle); color: var(--text); }
+    .ticket-pill-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0 10px; }
+    .pill { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--border-subtle); background: var(--input-bg); font-size: 12px; color: var(--text); }
+    .pill-k { color: var(--text-muted); font-weight: 600; }
+    .pill-v { font-weight: 700; }
+    .section { border-top: 1px solid var(--border-subtle); padding-top: 12px; margin-top: 12px; }
+    .section-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; user-select: none; }
+    .section-title h4 { margin: 0; font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .section-body { margin-top: 10px; }
+    .section.collapsed .section-body { display: none; }
+    .section-toggle { font-size: 12px; color: var(--accent); }
+    .ticket-desc { font-size: 14px; color: var(--text); white-space: pre-wrap; line-height: 1.55; }
+    .fields-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+    @media (max-width: 560px) { .fields-grid { grid-template-columns: 1fr; } }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { margin: 0; }
+    .field .inline { margin-bottom: 0 !important; }
+    .mini-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .mini-actions .btn-secondary, .mini-actions .btn-primary, .mini-actions .btn-danger { padding: 9px 14px; }
+    .attachments-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .attachments-row input[type="file"] { width: auto; margin: 0; padding: 8px 10px; }
+    .attachments-list { max-height: 140px; overflow: auto; margin-top: 10px; }
+    .modal-comments.compact { max-height: 160px; }
     .ticket-overdue { background: rgba(244, 63, 94, 0.12); }
     .text-overdue { color: var(--err); font-weight: 500; }
     .comment-templates { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -900,34 +929,56 @@
   </div>
 
   <div id="ticket-create-modal" class="modal-overlay hidden">
-    <div class="modal-box">
-      <h3>Новая заявка</h3>
+    <div class="modal-box modal-compact">
+      <div class="modal-header-row">
+        <div class="modal-title-block">
+          <h3>Новая заявка</h3>
+          <div class="modal-subtitle">Заполните минимум — остальное можно добавить позже.</div>
+        </div>
+        <button type="button" class="modal-close-x" id="ticket-create-close-x" title="Закрыть">×</button>
+      </div>
       <form id="ticket-create-form">
-        <label>Шаблон (необязательно)</label>
-        <select id="ticket-create-template" style="margin-bottom:12px;">
-          <option value="">— без шаблона</option>
-          <option value="column_fault">Поломка колонки</option>
-          <option value="no_fuel">Нет топлива</option>
-          <option value="cleaning">Уборка территории</option>
-          <option value="cashier">Проблема с кассиром</option>
-          <option value="other">Другое</option>
-        </select>
-        <label>Название</label>
-        <input type="text" id="ticket-create-title" required placeholder="Краткое описание" />
-        <label>Описание</label>
-        <textarea id="ticket-create-description" rows="3" placeholder="Подробности (необязательно)"></textarea>
-        <label>Приоритет</label>
-        <select id="ticket-create-priority">
-          <option value="low">Низкий</option>
-          <option value="normal" selected>Обычный</option>
-          <option value="high">Высокий</option>
-        </select>
-        <label>АЗС (необязательно)</label>
-        <select id="ticket-create-station"></select>
-        <label>Срок выполнения (необязательно)</label>
-        <input type="date" id="ticket-create-due" />
-        <label>Теги (через запятую, необязательно)</label>
-        <input type="text" id="ticket-create-tags" placeholder="колонка, касса, срочно" />
+        <div class="fields-grid">
+          <div class="field">
+            <label>Шаблон</label>
+            <select id="ticket-create-template" class="inline">
+              <option value="">— без шаблона</option>
+              <option value="column_fault">Поломка колонки</option>
+              <option value="no_fuel">Нет топлива</option>
+              <option value="cleaning">Уборка территории</option>
+              <option value="cashier">Проблема с кассиром</option>
+              <option value="other">Другое</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Приоритет</label>
+            <select id="ticket-create-priority" class="inline">
+              <option value="low">Низкий</option>
+              <option value="normal" selected>Обычный</option>
+              <option value="high">Высокий</option>
+            </select>
+          </div>
+          <div class="field" style="grid-column:1/-1;">
+            <label>Название</label>
+            <input type="text" id="ticket-create-title" required placeholder="Например: Не работает колонка №3" class="inline" />
+          </div>
+          <div class="field" style="grid-column:1/-1;">
+            <label>Описание (необязательно)</label>
+            <textarea id="ticket-create-description" rows="3" placeholder="Коротко: что случилось, когда, что уже пробовали…" class="inline"></textarea>
+          </div>
+          <div class="field">
+            <label>АЗС (необязательно)</label>
+            <select id="ticket-create-station" class="inline"></select>
+          </div>
+          <div class="field">
+            <label>Срок (необязательно)</label>
+            <input type="date" id="ticket-create-due" class="inline" />
+          </div>
+          <div class="field" style="grid-column:1/-1;">
+            <label>Теги (необязательно)</label>
+            <input type="text" id="ticket-create-tags" placeholder="колонка, касса, срочно" class="inline" />
+          </div>
+        </div>
         <div class="modal-actions">
           <button type="submit" class="btn-primary">Создать</button>
           <button type="button" class="btn-secondary" id="ticket-create-cancel">Отмена</button>
@@ -937,50 +988,114 @@
   </div>
 
   <div id="ticket-modal" class="modal-overlay hidden">
-    <div class="modal-box">
-      <h3 id="ticket-modal-title">Заявка</h3>
-      <p id="ticket-modal-description" style="color:var(--text-muted);font-size:14px;margin-bottom:12px;"></p>
-      <div id="ticket-modal-meta" class="ticket-meta" style="display:none;"></div>
-      <label>Статус</label>
-      <select id="ticket-modal-status">
-        <option value="new">Новая</option>
-        <option value="in_progress">В работе</option>
-        <option value="done">Выполнена</option>
-        <option value="canceled">Отменена</option>
-      </select>
-      <label id="ticket-modal-assignee-label">Исполнитель</label>
-      <select id="ticket-modal-assignee"></select>
-      <label>Срок выполнения</label>
-      <input type="date" id="ticket-modal-due" style="margin-bottom:12px;" />
-      <label>Теги</label>
-      <input type="text" id="ticket-modal-tags" placeholder="через запятую" style="margin-bottom:12px;" />
-      <label>Вложения</label>
-      <div id="ticket-modal-attachments" class="modal-comments" style="max-height:120px;"></div>
-      <div style="margin-bottom:8px;">
-        <input type="file" id="ticket-modal-file" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" />
-        <button type="button" class="btn-primary" id="ticket-modal-upload-btn" style="margin-top:4px;">Прикрепить файл</button>
+    <div class="modal-box modal-compact">
+      <div class="modal-header-row">
+        <div class="modal-title-block">
+          <h3 id="ticket-modal-title">Заявка</h3>
+          <div class="modal-subtitle" id="ticket-modal-subtitle">—</div>
+        </div>
+        <button type="button" class="modal-close-x" id="ticket-modal-close-x" title="Закрыть">×</button>
       </div>
-      <label>История изменений</label>
-      <div id="ticket-modal-history" class="modal-comments" style="max-height:140px;"></div>
-      <label>Комментарии</label>
-      <div id="ticket-modal-comments" class="modal-comments"></div>
-      <div class="comment-templates" style="margin-bottom:8px;">
-        <span style="font-size:12px;color:var(--text-muted);">Быстрые ответы:</span>
-        <button type="button" class="btn-template" data-text="Проверено">Проверено</button>
-        <button type="button" class="btn-template" data-text="Принято в работу">Принято в работу</button>
-        <button type="button" class="btn-template" data-text="Выполнено">Выполнено</button>
-        <button type="button" class="btn-template" data-text="Ожидаю запчасти">Ожидаю запчасти</button>
-        <button type="button" class="btn-template" data-text="Уточняю информацию">Уточняю информацию</button>
+
+      <div class="ticket-pill-row" id="ticket-pill-row" style="display:none;"></div>
+
+      <div class="section" id="ticket-section-main">
+        <div class="section-title" data-section-toggle="#ticket-section-main">
+          <h4>Основное</h4>
+          <span class="section-toggle">свернуть/развернуть</span>
+        </div>
+        <div class="section-body">
+          <div class="fields-grid">
+            <div class="field">
+              <label>Статус</label>
+              <select id="ticket-modal-status" class="inline">
+                <option value="new">Новая</option>
+                <option value="in_progress">В работе</option>
+                <option value="done">Выполнена</option>
+                <option value="canceled">Отменена</option>
+              </select>
+            </div>
+            <div class="field">
+              <label id="ticket-modal-assignee-label">Исполнитель</label>
+              <select id="ticket-modal-assignee" class="inline"></select>
+            </div>
+            <div class="field">
+              <label>Срок</label>
+              <input type="date" id="ticket-modal-due" class="inline" />
+            </div>
+            <div class="field">
+              <label>Теги</label>
+              <input type="text" id="ticket-modal-tags" placeholder="через запятую" class="inline" />
+            </div>
+          </div>
+
+          <div class="ticket-meta" id="ticket-modal-meta" style="display:none;margin-top:12px;"></div>
+
+          <div class="mini-actions" style="margin-top:12px;">
+            <button type="button" class="btn-secondary" id="ticket-action-done">Завершить</button>
+            <button type="button" class="btn-secondary" id="ticket-action-cancel">Отменить</button>
+            <button type="button" class="btn-danger" id="ticket-action-delete">Удалить</button>
+          </div>
+        </div>
       </div>
-      <form id="ticket-modal-comment-form">
-        <input type="text" id="ticket-modal-comment-input" placeholder="Добавить комментарий..." />
-        <button type="submit" class="btn-primary">Отправить</button>
-      </form>
-      <div class="modal-actions" style="margin-top:8px;">
-        <button type="button" class="btn-secondary" id="ticket-action-done">Завершить</button>
-        <button type="button" class="btn-secondary" id="ticket-action-cancel">Отменить</button>
-        <button type="button" class="btn-danger" id="ticket-action-delete">Удалить</button>
-        <button type="button" class="btn-secondary" id="ticket-modal-close">Закрыть</button>
+
+      <div class="section" id="ticket-section-desc">
+        <div class="section-title" data-section-toggle="#ticket-section-desc">
+          <h4>Описание</h4>
+          <span class="section-toggle">свернуть/развернуть</span>
+        </div>
+        <div class="section-body">
+          <div class="ticket-desc" id="ticket-modal-description">—</div>
+        </div>
+      </div>
+
+      <div class="section collapsed" id="ticket-section-attachments">
+        <div class="section-title" data-section-toggle="#ticket-section-attachments">
+          <h4>Вложения</h4>
+          <span class="section-toggle">показать</span>
+        </div>
+        <div class="section-body">
+          <div class="attachments-row">
+            <input type="file" id="ticket-modal-file" accept=".jpg,.jpeg,.png,.gif,.pdf,.doc,.docx,.xls,.xlsx,.txt,.zip" />
+            <button type="button" class="btn-primary" id="ticket-modal-upload-btn">Прикрепить</button>
+          </div>
+          <div id="ticket-modal-attachments" class="modal-comments compact attachments-list"></div>
+        </div>
+      </div>
+
+      <div class="section collapsed" id="ticket-section-history">
+        <div class="section-title" data-section-toggle="#ticket-section-history">
+          <h4>История</h4>
+          <span class="section-toggle">показать</span>
+        </div>
+        <div class="section-body">
+          <div id="ticket-modal-history" class="modal-comments compact"></div>
+        </div>
+      </div>
+
+      <div class="section" id="ticket-section-comments">
+        <div class="section-title" data-section-toggle="#ticket-section-comments">
+          <h4>Комментарии</h4>
+          <span class="section-toggle">свернуть/развернуть</span>
+        </div>
+        <div class="section-body">
+          <div class="comment-templates" style="margin-bottom:8px;">
+            <span style="font-size:12px;color:var(--text-muted);">Быстрые ответы:</span>
+            <button type="button" class="btn-template" data-text="Проверено">Проверено</button>
+            <button type="button" class="btn-template" data-text="Принято в работу">Принято в работу</button>
+            <button type="button" class="btn-template" data-text="Выполнено">Выполнено</button>
+            <button type="button" class="btn-template" data-text="Ожидаю запчасти">Ожидаю запчасти</button>
+            <button type="button" class="btn-template" data-text="Уточняю информацию">Уточняю информацию</button>
+          </div>
+          <form id="ticket-modal-comment-form">
+            <input type="text" id="ticket-modal-comment-input" placeholder="Добавить комментарий..." />
+            <button type="submit" class="btn-primary">Отправить</button>
+          </form>
+          <div id="ticket-modal-comments" class="modal-comments compact"></div>
+          <div class="modal-actions" style="margin-top:10px;">
+            <button type="button" class="btn-secondary" id="ticket-modal-close">Закрыть</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1813,6 +1928,24 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       if (tagsEl) tagsEl.value = ticket.tags || '';
       assigneeEl.innerHTML = '<option value="">— не назначен</option>' + usersList.map(function(u){ return '<option value="'+u.id+'" '+(ticket.assignee_id===u.id?'selected':'')+'>'+escapeHtml(u.full_name)+'</option>'; }).join('');
 
+      var subtitleEl = document.getElementById('ticket-modal-subtitle');
+      if (subtitleEl) {
+        var stationShort = (ticket.station && (ticket.station.code || ticket.station.name)) ? (ticket.station.code || ticket.station.name) : (ticket.station_id || '—');
+        subtitleEl.textContent = 'Заявка #' + ticket.id + ' · ' + (stationShort ? ('АЗС: ' + stationShort) : 'АЗС: —');
+      }
+
+      var pillRow = document.getElementById('ticket-pill-row');
+      if (pillRow) {
+        var stTxt = statusLabel(ticket.status || 'new');
+        var prTxt = priorityLabel(ticket.priority || 'normal');
+        var dueTxt = ticket.due_date ? formatDateOnly(ticket.due_date) : '—';
+        pillRow.innerHTML =
+          '<span class="pill"><span class="pill-k">Статус</span><span class="pill-v">'+escapeHtml(stTxt)+'</span></span>' +
+          '<span class="pill"><span class="pill-k">Приоритет</span><span class="pill-v">'+escapeHtml(prTxt)+'</span></span>' +
+          '<span class="pill"><span class="pill-k">Срок</span><span class="pill-v">'+escapeHtml(dueTxt)+'</span></span>';
+        pillRow.style.display = 'flex';
+      }
+
       var metaEl = document.getElementById('ticket-modal-meta');
       if (metaEl) {
         var stationLabel = (ticket.station && (ticket.station.name || ticket.station.code)) ? (ticket.station.name || ticket.station.code) : (ticket.station_id || '—');
@@ -1850,7 +1983,26 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       alert(err.message);
     }
   }
-  document.getElementById('ticket-modal-close').addEventListener('click', function(){ document.getElementById('ticket-modal').classList.add('hidden'); currentTicketId = null; });
+  function closeTicketModal() {
+    document.getElementById('ticket-modal').classList.add('hidden');
+    currentTicketId = null;
+  }
+  document.getElementById('ticket-modal-close').addEventListener('click', closeTicketModal);
+  if (document.getElementById('ticket-modal-close-x')) document.getElementById('ticket-modal-close-x').addEventListener('click', closeTicketModal);
+
+  function initSectionToggles() {
+    document.querySelectorAll('[data-section-toggle]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var sel = el.getAttribute('data-section-toggle');
+        var section = sel ? document.querySelector(sel) : null;
+        if (!section) return;
+        section.classList.toggle('collapsed');
+        var t = section.querySelector('.section-toggle');
+        if (t) t.textContent = section.classList.contains('collapsed') ? 'показать' : 'скрыть';
+      });
+    });
+  }
+  initSectionToggles();
   function updateTicketActionButtons(ticket) {
     var doneBtn = document.getElementById('ticket-action-done');
     var cancelBtn = document.getElementById('ticket-action-cancel');
@@ -1948,7 +2100,9 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       document.getElementById('ticket-create-modal').classList.remove('hidden');
     }).catch(function(e){ alert(e.message); });
   });
-  document.getElementById('ticket-create-cancel').addEventListener('click', function(){ document.getElementById('ticket-create-modal').classList.add('hidden'); });
+  function closeTicketCreateModal() { document.getElementById('ticket-create-modal').classList.add('hidden'); }
+  document.getElementById('ticket-create-cancel').addEventListener('click', closeTicketCreateModal);
+  if (document.getElementById('ticket-create-close-x')) document.getElementById('ticket-create-close-x').addEventListener('click', closeTicketCreateModal);
   var ticketTemplates = { column_fault: { title: 'Поломка колонки', description: 'Опишите номер колонки и характер неисправности.' }, no_fuel: { title: 'Нет топлива', description: 'Укажите марку и колонку.' }, cleaning: { title: 'Уборка территории', description: 'Требуется уборка территории АЗС.' }, cashier: { title: 'Проблема с кассиром', description: 'Опишите проблему.' }, other: { title: '', description: '' } };
   document.getElementById('ticket-create-template').addEventListener('change', function(){
     var v = this.value;
