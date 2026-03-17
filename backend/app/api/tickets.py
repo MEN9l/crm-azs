@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
 from app.core.email import send_email
-from app.models import Notification, Ticket, TicketComment, TicketHistory, User
+from app.models import Attachment, Notification, Ticket, TicketComment, TicketHistory, User
 from app.schemas import (
     TicketCreate,
     TicketResponse,
@@ -318,3 +318,40 @@ def add_ticket_comment(
         .first()
     )
     return comment
+
+
+@router.delete("/{ticket_id}")
+def delete_ticket(
+    ticket_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    ticket = _query_tickets(db, user).filter(Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Заявка не найдена")
+
+    is_privileged = user.role in ("admin", "chief")
+    is_creator = ticket.creator_id is not None and ticket.creator_id == user.id
+    if not (is_privileged or is_creator):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Недостаточно прав")
+
+    # Создателю разрешаем удаление только пока заявка не ушла в работу
+    if (not is_privileged) and ticket.status not in ("new", "canceled"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Можно удалить только новую или отменённую заявку")
+
+    # Удаляем вложения (и файлы на диске), комментарии и историю, чтобы не упереться в FK.
+    atts = db.query(Attachment).filter(Attachment.ticket_id == ticket_id).all()
+    for a in atts:
+        try:
+            p = a.get_file_path()
+            if p.exists():
+                p.unlink()
+        except Exception:
+            pass
+        db.delete(a)
+
+    db.query(TicketComment).filter(TicketComment.ticket_id == ticket_id).delete(synchronize_session=False)
+    db.query(TicketHistory).filter(TicketHistory.ticket_id == ticket_id).delete(synchronize_session=False)
+    db.delete(ticket)
+    db.commit()
+    return {"ok": True}

@@ -504,6 +504,14 @@
     .modal-actions .btn-primary:hover { background: var(--accent-hover); }
     .modal-actions .btn-secondary { background: var(--border); color: var(--text); }
     .modal-actions .btn-secondary:hover { background: var(--border-subtle); }
+    .btn-danger { background: rgba(244, 63, 94, 0.18); color: #fecdd3; padding: 10px 18px; border-radius: var(--radius); border: 1px solid rgba(244, 63, 94, 0.45); font-weight: 600; cursor: pointer; }
+    .btn-danger:hover { background: rgba(244, 63, 94, 0.26); }
+    body.theme-light .btn-danger { color: #9f1239; }
+    .ticket-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin: 10px 0 6px; }
+    .ticket-meta-item { background: var(--input-bg); border: 1px solid var(--border-subtle); border-radius: var(--radius); padding: 10px 12px; }
+    .ticket-meta-k { font-size: 12px; color: var(--text-muted); margin-bottom: 2px; }
+    .ticket-meta-v { font-size: 14px; color: var(--text); font-weight: 600; }
+    @media (max-width: 560px) { .ticket-meta { grid-template-columns: 1fr; } }
     .ticket-overdue { background: rgba(244, 63, 94, 0.12); }
     .text-overdue { color: var(--err); font-weight: 500; }
     .comment-templates { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -932,6 +940,7 @@
     <div class="modal-box">
       <h3 id="ticket-modal-title">Заявка</h3>
       <p id="ticket-modal-description" style="color:var(--text-muted);font-size:14px;margin-bottom:12px;"></p>
+      <div id="ticket-modal-meta" class="ticket-meta" style="display:none;"></div>
       <label>Статус</label>
       <select id="ticket-modal-status">
         <option value="new">Новая</option>
@@ -968,6 +977,9 @@
         <button type="submit" class="btn-primary">Отправить</button>
       </form>
       <div class="modal-actions" style="margin-top:8px;">
+        <button type="button" class="btn-secondary" id="ticket-action-done">Завершить</button>
+        <button type="button" class="btn-secondary" id="ticket-action-cancel">Отменить</button>
+        <button type="button" class="btn-danger" id="ticket-action-delete">Удалить</button>
         <button type="button" class="btn-secondary" id="ticket-modal-close">Закрыть</button>
       </div>
     </div>
@@ -1792,7 +1804,7 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       var canAssign = u && (u.role === 'admin' || u.role === 'chief');
       document.getElementById('ticket-modal-assignee-label').style.display = canAssign ? '' : 'none';
       assigneeEl.style.display = canAssign ? '' : 'none';
-      titleEl.textContent = ticket.title || 'Заявка #'+id;
+      titleEl.textContent = (ticket.title ? ticket.title : ('Заявка #'+id));
       descEl.textContent = ticket.description || '—';
       statusEl.value = ticket.status || 'new';
       var dueEl = document.getElementById('ticket-modal-due');
@@ -1800,6 +1812,24 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       var tagsEl = document.getElementById('ticket-modal-tags');
       if (tagsEl) tagsEl.value = ticket.tags || '';
       assigneeEl.innerHTML = '<option value="">— не назначен</option>' + usersList.map(function(u){ return '<option value="'+u.id+'" '+(ticket.assignee_id===u.id?'selected':'')+'>'+escapeHtml(u.full_name)+'</option>'; }).join('');
+
+      var metaEl = document.getElementById('ticket-modal-meta');
+      if (metaEl) {
+        var stationLabel = (ticket.station && (ticket.station.name || ticket.station.code)) ? (ticket.station.name || ticket.station.code) : (ticket.station_id || '—');
+        var creatorLabel = ticket.creator && (ticket.creator.full_name || ticket.creator.email) ? (ticket.creator.full_name || ticket.creator.email) : (ticket.creator_id || '—');
+        var assigneeLabel = ticket.assignee && (ticket.assignee.full_name || ticket.assignee.email) ? (ticket.assignee.full_name || ticket.assignee.email) : (ticket.assignee_id || '—');
+        metaEl.innerHTML =
+          '<div class="ticket-meta-item"><div class="ticket-meta-k">ID</div><div class="ticket-meta-v">#'+ticket.id+'</div></div>' +
+          '<div class="ticket-meta-item"><div class="ticket-meta-k">Статус</div><div class="ticket-meta-v">'+statusLabel(ticket.status || 'new')+'</div></div>' +
+          '<div class="ticket-meta-item"><div class="ticket-meta-k">Приоритет</div><div class="ticket-meta-v">'+priorityLabel(ticket.priority || 'normal')+'</div></div>' +
+          '<div class="ticket-meta-item"><div class="ticket-meta-k">АЗС</div><div class="ticket-meta-v">'+escapeHtml(String(stationLabel))+'</div></div>' +
+          '<div class="ticket-meta-item"><div class="ticket-meta-k">Создал</div><div class="ticket-meta-v">'+escapeHtml(String(creatorLabel))+'</div></div>' +
+          '<div class="ticket-meta-item"><div class="ticket-meta-k">Исполнитель</div><div class="ticket-meta-v">'+escapeHtml(String(assigneeLabel))+'</div></div>' +
+          '<div class="ticket-meta-item"><div class="ticket-meta-k">Создана</div><div class="ticket-meta-v">'+formatDate(ticket.created_at)+'</div></div>' +
+          '<div class="ticket-meta-item"><div class="ticket-meta-k">Обновлена</div><div class="ticket-meta-v">'+formatDate(ticket.updated_at)+'</div></div>';
+        metaEl.style.display = 'grid';
+      }
+
       var comments = await api('/tickets/'+id+'/comments');
       commentsEl.innerHTML = comments.length ? comments.map(function(c){ return '<div class="modal-comment"><strong>'+escapeHtml(c.user&&c.user.full_name||'')+'</strong> '+escapeHtml(c.content)+' <span class="chat-message-time">'+formatDate(c.created_at)+'</span></div>'; }).join('') : '<div class="chat-message-time">Нет комментариев</div>';
       var historyEl = document.getElementById('ticket-modal-history');
@@ -1815,11 +1845,49 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
         attEl.querySelectorAll('[data-att-id]').forEach(function(btn){ btn.addEventListener('click', function(){ var aid = btn.getAttribute('data-att-id'); var name = btn.getAttribute('data-name') || 'file'; fetch(API+'/attachments/'+aid+'/download', { headers: { 'Authorization': 'Bearer '+getToken() } }).then(function(r){ return r.blob(); }).then(function(blob){ var url = URL.createObjectURL(blob); var a = document.createElement('a'); a.href = url; a.download = name; a.click(); URL.revokeObjectURL(url); }); }); });
       } catch(_) { attEl.innerHTML = '<div class="chat-message-time">Нет вложений</div>'; }
       modal.classList.remove('hidden');
+      updateTicketActionButtons(ticket);
     } catch (err) {
       alert(err.message);
     }
   }
   document.getElementById('ticket-modal-close').addEventListener('click', function(){ document.getElementById('ticket-modal').classList.add('hidden'); currentTicketId = null; });
+  function updateTicketActionButtons(ticket) {
+    var doneBtn = document.getElementById('ticket-action-done');
+    var cancelBtn = document.getElementById('ticket-action-cancel');
+    var delBtn = document.getElementById('ticket-action-delete');
+    var st = (ticket && ticket.status) ? ticket.status : null;
+    if (doneBtn) doneBtn.disabled = (st === 'done' || st === 'canceled');
+    if (cancelBtn) cancelBtn.disabled = (st === 'canceled' || st === 'done');
+    if (delBtn) delBtn.disabled = false;
+  }
+
+  async function setTicketStatus(id, status) {
+    await api('/tickets/'+id, { method: 'PATCH', body: JSON.stringify({ status: status }) });
+    await openTicket(id);
+    loadTickets();
+  }
+
+  var ticketDoneBtn = document.getElementById('ticket-action-done');
+  if (ticketDoneBtn) ticketDoneBtn.addEventListener('click', function(){
+    if (!currentTicketId) return;
+    setTicketStatus(currentTicketId, 'done').catch(function(e){ alert(e.message); });
+  });
+  var ticketCancelBtn = document.getElementById('ticket-action-cancel');
+  if (ticketCancelBtn) ticketCancelBtn.addEventListener('click', function(){
+    if (!currentTicketId) return;
+    setTicketStatus(currentTicketId, 'canceled').catch(function(e){ alert(e.message); });
+  });
+  var ticketDeleteBtn = document.getElementById('ticket-action-delete');
+  if (ticketDeleteBtn) ticketDeleteBtn.addEventListener('click', function(){
+    if (!currentTicketId) return;
+    if (!confirm('Удалить заявку #' + currentTicketId + '? Это действие нельзя отменить.')) return;
+    api('/tickets/' + currentTicketId, { method: 'DELETE' }).then(function(){
+      document.getElementById('ticket-modal').classList.add('hidden');
+      currentTicketId = null;
+      loadTickets();
+      playSound('notification');
+    }).catch(function(e){ alert(e.message); });
+  });
   document.getElementById('ticket-modal-status').addEventListener('change', function(){
     if (!currentTicketId) return;
     api('/tickets/'+currentTicketId, { method: 'PATCH', body: JSON.stringify({ status: this.value }) }).catch(function(e){ alert(e.message); });
