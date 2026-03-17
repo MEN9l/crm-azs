@@ -21,6 +21,8 @@ def list_tasks(
     status_filter: str | None = Query(None, alias="status"),
     search: str | None = Query(None, alias="q"),
     due_week: bool = Query(False, description="Только задачи со сроком на эту неделю"),
+    limit: int = Query(300, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
 ):
     q = db.query(Task).options(joinedload(Task.assignee), joinedload(Task.department)).order_by(Task.id.desc())
     if status_filter:
@@ -32,7 +34,7 @@ def list_tasks(
     if search and search.strip():
         term = f"%{search.strip()}%"
         q = q.filter(or_(Task.title.ilike(term), (Task.description != None) & (Task.description.ilike(term))))
-    return q.all()
+    return q.offset(offset).limit(limit).all()
 
 
 @router.get("/{task_id}", response_model=TaskResponse)

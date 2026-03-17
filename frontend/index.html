@@ -597,6 +597,8 @@
     .auth-card button:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .kanban { display: grid; gap: 16px; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 20px; }
+    /* Задачи: 3 колонки (Новые / В работе / Выполнена) */
+    #kanban-root.kanban { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .kanban-column {
       background: var(--bg-card);
       border-radius: var(--radius-lg);
@@ -604,8 +606,12 @@
       padding: 12px;
       min-height: 200px;
       box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
     }
-    .kanban-column h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .kanban-column h3 { margin: 0 0 12px; font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; position: sticky; top: 0; background: var(--bg-card); padding: 6px 4px; border-bottom: 1px solid var(--border-subtle); z-index: 1; }
+    .kanban-list { overflow: auto; padding: 8px 4px 6px; flex: 1; min-height: 0; }
+    .kanban-empty { padding: 12px 10px; color: var(--text-muted); font-size: 13px; border: 1px dashed var(--border-subtle); border-radius: 12px; text-align: center; }
     .kanban-card {
       background: var(--input-bg);
       border-radius: var(--radius);
@@ -615,6 +621,9 @@
       cursor: pointer;
       transition: border-color var(--transition), box-shadow var(--transition);
     }
+    .kanban-card:first-child { margin-top: 0; }
+    .kanban-title { font-weight: 700; font-size: 14px; line-height: 1.3; }
+    .kanban-meta { margin-top: 6px; }
     .kanban-card:hover { border-color: var(--accent); box-shadow: 0 2px 12px var(--accent-soft); }
     .kanban-card.is-overdue { border-color: rgba(244, 63, 94, 0.45); background: rgba(244, 63, 94, 0.10); }
     .kanban-card.dragging { opacity: 0.65; transform: rotate(-0.2deg); }
@@ -3894,7 +3903,13 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       try {
         var thList = await api('/tasks/'+id+'/history');
         var fieldLabels = { status: 'Статус', department_id: 'Отдел', due_date: 'Срок', assignee_id: 'Исполнитель' };
-        taskHistoryEl.innerHTML = thList.length ? thList.map(function(h){ var fn = fieldLabels[h.field_name] || h.field_name; return '<div class="modal-comment"><strong>'+escapeHtml(h.user&&h.user.full_name||'')+'</strong>: '+fn+' — ' + (h.old_value ? escapeHtml(h.old_value) : '—') + ' → ' + (h.new_value ? escapeHtml(h.new_value) : '—') + ' <span class="chat-message-time">'+formatDate(h.created_at)+'</span></div>'; }).join('') : '<div class="chat-message-time">Нет изменений</div>';
+        taskHistoryEl.innerHTML = thList.length ? thList.map(function(h){
+          var fn = fieldLabels[h.field_name] || h.field_name;
+          var ov = h.old_value ? String(h.old_value) : '';
+          var nv = h.new_value ? String(h.new_value) : '';
+          if (h.field_name === 'status') { ov = ov ? taskStatusLabel(ov) : '—'; nv = nv ? taskStatusLabel(nv) : '—'; }
+          return '<div class="modal-comment"><strong>'+escapeHtml(h.user&&h.user.full_name||'')+'</strong>: '+fn+' — ' + (ov ? escapeHtml(ov) : '—') + ' → ' + (nv ? escapeHtml(nv) : '—') + ' <span class="chat-message-time">'+formatDate(h.created_at)+'</span></div>';
+        }).join('') : '<div class="chat-message-time">Нет изменений</div>';
       } catch(_) { taskHistoryEl.innerHTML = '<div class="chat-message-time">Нет изменений</div>'; }
       modal.classList.remove('hidden');
     } catch (err) { alert(err.message); }
@@ -3915,7 +3930,7 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
   if (document.getElementById('tasks-only-mine')) document.getElementById('tasks-only-mine').addEventListener('change', loadTasks);
 
   function taskStatusLabel(v) {
-    var map = { backlog: 'Backlog', in_progress: 'В работе', review: 'На проверке', done: 'Выполнена' };
+    var map = { backlog: 'Новые', in_progress: 'В работе', done: 'Выполнена' };
     return map[v] || v || '—';
   }
 
@@ -3932,6 +3947,8 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     var onlyMine = document.getElementById('tasks-only-mine') && document.getElementById('tasks-only-mine').checked;
     var params = [];
     if (searchQ) params.push('q=' + encodeURIComponent(searchQ));
+    params.push('limit=300');
+    params.push('offset=0');
     var query = params.length ? '?' + params.join('&') : '';
     loading.style.display = 'block';
     loading.className = 'skeleton-wrap';
@@ -3941,7 +3958,7 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       const list = await api('/tasks' + query);
       loading.style.display = 'none';
       root.style.display = 'grid';
-      const statuses = ['backlog','in_progress','review','done'];
+      const statuses = ['backlog','in_progress','done'];
       var me = getUser();
       var filtered = list;
       // "Только мои" теперь понимаем как "мой отдел"
@@ -3949,11 +3966,17 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       var counts = {};
       statuses.forEach(function(s){ counts[s] = filtered.filter(function(t){ return t.status === s; }).length; });
       root.innerHTML = statuses.map(function(st){
-        return '<div class="kanban-column" data-status="'+st+'"><h3><span>'+escapeHtml(taskStatusLabel(st))+'</span><span class="kanban-count">'+counts[st]+'</span></h3></div>';
+        return '<div class="kanban-column" data-status="'+st+'"><h3><span>'+escapeHtml(taskStatusLabel(st))+'</span><span class="kanban-count">'+counts[st]+'</span></h3><div class="kanban-list" data-list="'+st+'"></div></div>';
       }).join('');
       statuses.forEach((st, i) => {
         const col = root.children[i];
-        filtered.filter(t => t.status === st).forEach(t => {
+        const listEl = col.querySelector('.kanban-list');
+        var items = filtered.filter(t => t.status === st);
+        if (!items.length && listEl) {
+          listEl.innerHTML = '<div class="kanban-empty">Пусто</div>';
+          return;
+        }
+        items.forEach(t => {
           const card = document.createElement('div');
           card.className = 'kanban-card';
           card.style.cursor = 'pointer';
@@ -3970,7 +3993,7 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
             card.classList.remove('dragging');
             document.querySelectorAll('.kanban-column.drop-target').forEach(function(c){ c.classList.remove('drop-target'); });
           });
-          col.appendChild(card);
+          (listEl || col).appendChild(card);
         });
       });
 
