@@ -1000,6 +1000,22 @@
             <div id="online-avatars" style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;"></div>
           </div>
 
+          <!-- Быстрые действия + показатели -->
+          <div class="card" style="margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap;">
+              <div>
+                <h2 style="margin:0 0 6px;">Рабочий обзор</h2>
+                <p style="margin:0;color:var(--text-muted);font-size:14px;">Коротко по заявкам и задачам — чтобы ничего не потерялось.</p>
+              </div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button type="button" class="btn-primary" id="dashboard-create-ticket">Создать заявку</button>
+                <button type="button" class="btn-secondary" id="dashboard-go-tickets">Открыть заявки</button>
+              </div>
+            </div>
+            <div id="dashboard-kpis" class="card-row" style="margin-top:14px;"></div>
+            <div id="dashboard-attention" style="margin-top:14px;"></div>
+          </div>
+
           <!-- Доска объявлений -->
           <div class="board-header" style="display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px;">
             <div>
@@ -1821,10 +1837,129 @@
     if (name === 'tasks') loadTasks();
     if (name === 'chat') loadChat();
     if (name === 'departments') loadDepartmentsPage();
-    if (name === 'dashboard') { loadOnline(); loadAnnouncements(); startOnlineRefresh(); }
+    if (name === 'dashboard') { loadOnline(); loadDashboardWidgets(); loadAnnouncements(); startOnlineRefresh(); }
     if (name === 'profile') loadProfile();
     if (name === 'users') loadUsersAdmin();
     loadNotificationCount();
+  }
+
+  function renderDashboardKpis(stats) {
+    var el = document.getElementById('dashboard-kpis');
+    if (!el) return;
+    el.innerHTML = [
+      { label: 'Новые', value: stats.newCount, hint: 'Требуют реакции', color: 'var(--accent)' },
+      { label: 'В работе', value: stats.inProgressCount, hint: 'Сейчас выполняются', color: '#eab308' },
+      { label: 'Просрочено', value: stats.overdueCount, hint: 'Нужно внимание', color: 'var(--err)' },
+      { label: 'Мои', value: stats.myCount, hint: 'Назначено мне', color: 'var(--success)' },
+    ].map(function(x){
+      return (
+        '<div class="card card-small" style="margin:0;min-width:160px;flex:1;border-color:rgba(148,163,184,0.35)">' +
+          '<div class="card-label">' + escapeHtml(x.label) + '</div>' +
+          '<div class="card-value" style="color:'+x.color+'">' + escapeHtml(String(x.value)) + '</div>' +
+          '<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">' + escapeHtml(x.hint) + '</div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  function renderDashboardAttention(att) {
+    var el = document.getElementById('dashboard-attention');
+    if (!el) return;
+    var t = (att && att.tickets) ? att.tickets : [];
+    var tasks = (att && att.tasks) ? att.tasks : [];
+    var topTickets = t.slice(0, 6);
+    var topTasks = tasks.slice(0, 6);
+
+    var ticketsHtml = topTickets.length ? (
+      '<div class="table-wrap"><table class="table" style="margin-top:10px;min-width:640px;">' +
+        '<thead><tr><th>Заявка</th><th>Срок</th><th>Статус</th><th>Приоритет</th></tr></thead>' +
+        '<tbody>' +
+          topTickets.map(function(x){
+            return '<tr class="ticket-row" data-open-ticket="'+x.id+'">' +
+              '<td>#'+x.id+' · '+escapeHtml(x.title||'')+'</td>' +
+              '<td>'+escapeHtml(formatDateOnly(x.due_date))+'</td>' +
+              '<td>'+escapeHtml(statusLabel(x.status||''))+'</td>' +
+              '<td>'+escapeHtml(priorityLabel(x.priority||''))+'</td>' +
+            '</tr>';
+          }).join('') +
+        '</tbody></table></div>'
+    ) : '<div class="chat-message-time" style="margin-top:10px;">Нет заявок со сроком до завтра.</div>';
+
+    var tasksHtml = topTasks.length ? (
+      '<div class="table-wrap"><table class="table" style="margin-top:10px;min-width:640px;">' +
+        '<thead><tr><th>Задача</th><th>Срок</th><th>Статус</th></tr></thead>' +
+        '<tbody>' +
+          topTasks.map(function(x){
+            return '<tr>' +
+              '<td>#'+x.id+' · '+escapeHtml(x.title||'')+'</td>' +
+              '<td>'+escapeHtml(formatDateOnly(x.due_date))+'</td>' +
+              '<td>'+escapeHtml(statusLabel(x.status||''))+'</td>' +
+            '</tr>';
+          }).join('') +
+        '</tbody></table></div>'
+    ) : '<div class="chat-message-time" style="margin-top:10px;">Нет задач со сроком до завтра.</div>';
+
+    el.innerHTML =
+      '<div class="section" id="dashboard-section-attention">' +
+        '<div class="section-title" data-section-toggle="#dashboard-section-attention">' +
+          '<h4>Требует внимания (срок до завтра)</h4>' +
+          '<span class="section-toggle">скрыть</span>' +
+        '</div>' +
+        '<div class="section-body">' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">' +
+            '<div><div class="card-label" style="margin:0;">Заявки</div>' + ticketsHtml + '</div>' +
+            '<div><div class="card-label" style="margin:0;">Задачи</div>' + tasksHtml + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    // clicks to open ticket
+    el.querySelectorAll('[data-open-ticket]').forEach(function(row){
+      row.addEventListener('click', function(){
+        var id = parseInt(row.getAttribute('data-open-ticket'), 10);
+        switchView('tickets');
+        setTimeout(function(){ openTicket(id); }, 0);
+      });
+    });
+  }
+
+  async function loadDashboardWidgets() {
+    var kpis = document.getElementById('dashboard-kpis');
+    var attEl = document.getElementById('dashboard-attention');
+    if (!kpis || !attEl) return;
+    kpis.innerHTML = '<div class="chat-message-time">Загрузка…</div>';
+    attEl.innerHTML = '';
+    try {
+      var me = getUser();
+      var res = await Promise.all([
+        api('/tickets?limit=200&offset=0'),
+        api('/dashboard/attention'),
+      ]);
+      var tickets = res[0] || [];
+      var att = res[1] || {};
+
+      var newCount = tickets.filter(function(t){ return t.status === 'new'; }).length;
+      var inProgressCount = tickets.filter(function(t){ return t.status === 'in_progress'; }).length;
+      var myCount = me ? tickets.filter(function(t){ return t.assignee_id === me.id; }).length : 0;
+      var overdueCount = tickets.filter(function(t){ return isOverdue(t.due_date, t.status); }).length;
+
+      renderDashboardKpis({ newCount: newCount, inProgressCount: inProgressCount, overdueCount: overdueCount, myCount: myCount });
+      renderDashboardAttention(att);
+      // enable section toggles inside dashboard
+      initSectionToggles();
+    } catch (e) {
+      kpis.innerHTML = '<div class="msg err">Не удалось загрузить показатели: ' + escapeHtml(e.message || 'Ошибка') + '</div>';
+    }
+  }
+
+  if (document.getElementById('dashboard-create-ticket')) {
+    document.getElementById('dashboard-create-ticket').addEventListener('click', function(){
+      switchView('tickets');
+      setTimeout(function(){ try { document.getElementById('ticket-create-btn').click(); } catch(_){} }, 0);
+    });
+  }
+  if (document.getElementById('dashboard-go-tickets')) {
+    document.getElementById('dashboard-go-tickets').addEventListener('click', function(){ switchView('tickets'); });
   }
 
   let departmentsState = { selectedId: null, expanded: {}, deps: [], users: [] };
