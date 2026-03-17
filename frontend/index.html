@@ -177,6 +177,15 @@
       font-size: 16px;
       line-height: 1;
     }
+    .sidebar-ico svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
     .sidebar-link:hover .sidebar-ico { color: var(--text); background: rgba(148,163,184,0.14); border-color: rgba(148,163,184,0.22); transform: translateY(-1px); }
     .sidebar-link.active .sidebar-ico { color: var(--accent); background: rgba(14,165,233,0.16); border-color: rgba(14,165,233,0.30); }
     .sidebar-text { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -1002,6 +1011,43 @@
 </head>
 <body>
 <div id="app">
+  <!-- Inline icon set (modern line icons) -->
+  <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden;">
+    <symbol id="ico-home" viewBox="0 0 24 24">
+      <path d="M3 10.5 12 3l9 7.5"></path>
+      <path d="M5 9.9V21h14V9.9"></path>
+    </symbol>
+    <symbol id="ico-ticket" viewBox="0 0 24 24">
+      <path d="M5 7h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4V9a2 2 0 0 1 2-2z"></path>
+      <path d="M9 7v10"></path>
+    </symbol>
+    <symbol id="ico-checklist" viewBox="0 0 24 24">
+      <path d="M9 6h12"></path>
+      <path d="M9 12h12"></path>
+      <path d="M9 18h12"></path>
+      <path d="M3.5 6.5l1.5 1.5 3-3"></path>
+      <path d="M3.5 12.5l1.5 1.5 3-3"></path>
+      <path d="M3.5 18.5l1.5 1.5 3-3"></path>
+    </symbol>
+    <symbol id="ico-chat" viewBox="0 0 24 24">
+      <path d="M21 12a8 8 0 0 1-8 8H8l-5 3 1.5-5.5A8 8 0 1 1 21 12z"></path>
+      <path d="M8 12h.01"></path>
+      <path d="M12 12h.01"></path>
+      <path d="M16 12h.01"></path>
+    </symbol>
+    <symbol id="ico-building" viewBox="0 0 24 24">
+      <path d="M3 21h18"></path>
+      <path d="M6 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"></path>
+      <path d="M10 7h1"></path><path d="M13 7h1"></path>
+      <path d="M10 11h1"></path><path d="M13 11h1"></path>
+      <path d="M10 15h1"></path><path d="M13 15h1"></path>
+    </symbol>
+    <symbol id="ico-users" viewBox="0 0 24 24">
+      <path d="M16 11a4 4 0 1 0-8 0"></path>
+      <path d="M20 21a8 8 0 0 0-16 0"></path>
+      <path d="M18 8.5a3 3 0 0 1 0 5.8"></path>
+    </symbol>
+  </svg>
   <div id="login-screen" class="auth-root">
     <form class="auth-card" id="login-form">
       <h1>Вход в CRM АЗС</h1>
@@ -1036,27 +1082,27 @@
       </div>
       <nav class="sidebar-nav">
         <div class="sidebar-link active" data-view="dashboard">
-          <span class="sidebar-ico" aria-hidden="true">🏠</span>
+          <span class="sidebar-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#ico-home" xlink:href="#ico-home"></use></svg></span>
           <span class="sidebar-text"><span class="sidebar-title">Главная</span><span class="sidebar-sub">Обзор</span></span>
         </div>
         <div class="sidebar-link" data-view="tickets">
-          <span class="sidebar-ico" aria-hidden="true">🧾</span>
+          <span class="sidebar-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#ico-ticket" xlink:href="#ico-ticket"></use></svg></span>
           <span class="sidebar-text"><span class="sidebar-title">Заявки</span><span class="sidebar-sub">Список и фильтры</span></span>
         </div>
         <div class="sidebar-link" data-view="tasks">
-          <span class="sidebar-ico" aria-hidden="true">✅</span>
+          <span class="sidebar-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#ico-checklist" xlink:href="#ico-checklist"></use></svg></span>
           <span class="sidebar-text"><span class="sidebar-title">Задачи</span><span class="sidebar-sub">Kanban</span></span>
         </div>
         <div class="sidebar-link" data-view="chat">
-          <span class="sidebar-ico" aria-hidden="true">💬</span>
+          <span class="sidebar-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#ico-chat" xlink:href="#ico-chat"></use></svg></span>
           <span class="sidebar-text"><span class="sidebar-title">Чат</span><span class="sidebar-sub">Команды</span></span>
         </div>
         <div class="sidebar-link" data-view="departments" id="sidebar-departments-link" style="display:none;">
-          <span class="sidebar-ico" aria-hidden="true">🏢</span>
+          <span class="sidebar-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#ico-building" xlink:href="#ico-building"></use></svg></span>
           <span class="sidebar-text"><span class="sidebar-title">Отделы</span><span class="sidebar-sub">Иерархия</span></span>
         </div>
         <div class="sidebar-link" data-view="users" id="sidebar-users-link" style="display:none;">
-          <span class="sidebar-ico" aria-hidden="true">👥</span>
+          <span class="sidebar-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#ico-users" xlink:href="#ico-users"></use></svg></span>
           <span class="sidebar-text"><span class="sidebar-title">Пользователи</span><span class="sidebar-sub">Роли и отделы</span></span>
         </div>
       </nav>
@@ -3056,10 +3102,17 @@
       e.stopPropagation();
       var sb = document.getElementById('sidebar');
       if (!sb) return;
-      var next = !sb.classList.contains('collapsed');
-      sb.classList.toggle('collapsed', next);
+      // If sidebar is collapsed but temporarily expanded on hover, clicking pins it open.
+      if (sb.classList.contains('collapsed')) {
+        sb.classList.remove('collapsed');
+        sb.classList.remove('hover-open');
+        try { localStorage.setItem(SIDEBAR_KEY, '0'); } catch (_) {}
+        return;
+      }
+      // otherwise collapse
+      sb.classList.add('collapsed');
       sb.classList.remove('hover-open');
-      try { localStorage.setItem(SIDEBAR_KEY, next ? '1' : '0'); } catch (_) {}
+      try { localStorage.setItem(SIDEBAR_KEY, '1'); } catch (_) {}
     });
   }
 
