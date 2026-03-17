@@ -1587,7 +1587,7 @@
     el.className = 'msg ' + (type === 'err' ? 'err' : 'ok');
     el.textContent = text;
     el.style.display = 'block';
-    setTimeout(function(){ try { el.style.display = 'none'; } catch(_){} }, 3500);
+    if (type !== 'err') setTimeout(function(){ try { el.style.display = 'none'; } catch(_){} }, 3000);
   }
 
   function buildDeptTree(deps) {
@@ -1729,6 +1729,8 @@
       if (!silent) showDeptMsg('err', 'Недостаточно прав');
       return;
     }
+    var treeEl = document.getElementById('departments-tree');
+    if (treeEl) treeEl.innerHTML = '<div class="chat-message-time">Загрузка…</div>';
     try {
       var res = await Promise.all([api('/departments'), api('/users')]);
       departmentsState.deps = res[0] || [];
@@ -1740,8 +1742,23 @@
       renderDepartmentsTree();
       renderDepartmentDetails();
       if (!silent) showDeptMsg('ok', 'Отделы загружены');
+      if (treeEl && !(departmentsState.deps || []).length) {
+        treeEl.innerHTML =
+          '<div class="empty-state" style="margin-top:10px;">' +
+            '<p class="empty-state-title">Отделов пока нет</p>' +
+            '<p class="empty-state-text">Создайте первый отдел ниже. Если вы ожидали увидеть отделы автоматически, проверьте что backend перезапущен и применена миграция БД (alembic upgrade head).</p>' +
+          '</div>';
+      }
     } catch (e) {
       if (!silent) showDeptMsg('err', e.message || 'Ошибка загрузки отделов');
+      if (treeEl) {
+        treeEl.innerHTML =
+          '<div class="empty-state" style="margin-top:10px;">' +
+            '<p class="empty-state-title">Не удалось загрузить отделы</p>' +
+            '<p class="empty-state-text">' + escapeHtml(e.message || 'Ошибка') + '</p>' +
+            '<p class="empty-state-text" style="margin-top:8px;">Чаще всего: backend не перезапущен или не применена миграция `014` (таблица departments). Примените миграции и обновите страницу.</p>' +
+          '</div>';
+      }
     }
   }
 
