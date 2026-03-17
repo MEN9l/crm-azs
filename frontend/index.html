@@ -169,6 +169,69 @@
     .dept-count { margin-left: auto; font-size: 12px; color: var(--text-muted); }
     .dept-form label { display:block; font-size: 13px; font-weight: 500; color: var(--text-muted); margin: 10px 0 6px; }
     .dept-form input, .dept-form select { width: 100%; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
+
+    .org-chart { margin-top: 10px; overflow: auto; padding: 10px 6px 18px; }
+    .org-level { display: flex; justify-content: center; gap: 18px; flex-wrap: nowrap; }
+    .org-node-wrap { display: flex; flex-direction: column; align-items: center; min-width: 220px; }
+    .org-node {
+      width: 220px;
+      border-radius: 14px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      padding: 12px 12px 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+      cursor: pointer;
+      position: relative;
+      transition: border-color var(--transition), transform 0.1s ease, background var(--transition);
+    }
+    body.theme-light .org-node { box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+    .org-node:hover { border-color: rgba(14,165,233,0.55); transform: translateY(-1px); }
+    .org-node.active { border-color: var(--accent); background: rgba(14,165,233,0.10); }
+    .org-node-title { font-weight: 800; font-size: 14px; color: var(--text); line-height: 1.25; }
+    .org-node-sub { margin-top: 6px; font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; gap: 8px; }
+    .org-node-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+    .org-btn {
+      border: 1px solid var(--border-subtle);
+      background: var(--input-bg);
+      color: var(--text-muted);
+      border-radius: 999px;
+      font-size: 12px;
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition), color var(--transition);
+    }
+    .org-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    .org-btn.danger:hover { border-color: var(--err); color: var(--err); background: rgba(244,63,94,0.12); }
+    .org-children { display: flex; justify-content: center; gap: 18px; margin-top: 18px; position: relative; padding-top: 18px; }
+    .org-children::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 10%;
+      right: 10%;
+      height: 1px;
+      background: var(--border-subtle);
+    }
+    .org-child { position: relative; padding-top: 18px; }
+    .org-child::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: 1px;
+      height: 18px;
+      background: var(--border-subtle);
+    }
+    .org-node-wrap.has-children::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      width: 1px;
+      height: 18px;
+      background: var(--border-subtle);
+      transform: translateX(-50%);
+    }
     .badge {
       display: inline-flex;
       align-items: center;
@@ -946,11 +1009,13 @@
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
               <h2 style="margin:0;">Отделы</h2>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <button type="button" class="btn-secondary" id="departments-mode-tree">Список</button>
+                <button type="button" class="btn-secondary" id="departments-mode-chart">Схема</button>
                 <button type="button" class="btn-secondary" id="departments-refresh">Обновить</button>
               </div>
             </div>
             <div id="departments-msg" class="msg" style="display:none;"></div>
-            <div class="dept-layout">
+            <div id="departments-mode-tree-wrap" class="dept-layout">
               <div class="dept-left">
                 <div class="dept-card">
                   <div class="dept-card-title">Дерево отделов</div>
@@ -1014,6 +1079,12 @@
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+            <div id="departments-mode-chart-wrap" style="display:none;margin-top:14px;">
+              <div class="dept-card">
+                <div class="dept-card-title">Оргструктура</div>
+                <div id="departments-chart" class="org-chart"></div>
               </div>
             </div>
           </div>
@@ -1670,6 +1741,158 @@
     });
   }
 
+  function renderDepartmentsChart() {
+    var rootEl = document.getElementById('departments-chart');
+    if (!rootEl) return;
+    var deps = departmentsState.deps || [];
+    var users = departmentsState.users || [];
+    if (!deps.length) {
+      rootEl.innerHTML = '<div class="empty-state"><p class="empty-state-title">Нет отделов</p><p class="empty-state-text">Создайте отдел, и он появится на схеме.</p></div>';
+      return;
+    }
+    var tree = buildDeptTree(deps);
+    var byParent = tree.byParent;
+    var roots = byParent['root'] || [];
+    var u = getUser();
+    var canManage = u && (u.role === 'admin' || u.role === 'chief');
+
+    function deptUserCount(depId) {
+      var n = 0;
+      for (var i=0;i<users.length;i++) if (users[i].department_id === depId) n++;
+      return n;
+    }
+
+    function createNode(dep) {
+      var wrap = document.createElement('div');
+      wrap.className = 'org-node-wrap';
+      var node = document.createElement('div');
+      node.className = 'org-node' + (departmentsState.selectedId === dep.id ? ' active' : '');
+      node.setAttribute('data-id', String(dep.id));
+
+      var title = document.createElement('div');
+      title.className = 'org-node-title';
+      title.textContent = dep.name || '—';
+
+      var sub = document.createElement('div');
+      sub.className = 'org-node-sub';
+      sub.innerHTML = '<span>#' + dep.id + '</span><span>' + deptUserCount(dep.id) + ' чел.</span>';
+
+      node.appendChild(title);
+      node.appendChild(sub);
+
+      if (canManage) {
+        var actions = document.createElement('div');
+        actions.className = 'org-node-actions';
+
+        var btnAdd = document.createElement('button');
+        btnAdd.type = 'button';
+        btnAdd.className = 'org-btn';
+        btnAdd.textContent = '+ дочерний';
+        btnAdd.addEventListener('click', function(e){
+          e.stopPropagation();
+          switchDepartmentsMode('tree');
+          var parentSel = document.getElementById('dept-new-parent');
+          if (parentSel) parentSel.value = String(dep.id);
+          var nameInput = document.getElementById('dept-new-name');
+          if (nameInput) nameInput.focus();
+        });
+
+        var btnEdit = document.createElement('button');
+        btnEdit.type = 'button';
+        btnEdit.className = 'org-btn';
+        btnEdit.textContent = 'изменить';
+        btnEdit.addEventListener('click', function(e){
+          e.stopPropagation();
+          departmentsState.selectedId = dep.id;
+          switchDepartmentsMode('tree');
+          renderDepartmentsTree();
+          renderDepartmentDetails();
+          var editName = document.getElementById('dept-edit-name');
+          if (editName) { editName.focus(); editName.select(); }
+        });
+
+        var btnDel = document.createElement('button');
+        btnDel.type = 'button';
+        btnDel.className = 'org-btn danger';
+        btnDel.textContent = 'удалить';
+        btnDel.addEventListener('click', function(e){
+          e.stopPropagation();
+          if (!confirm('Удалить отдел? Он не должен иметь сотрудников/заявок/дочерних отделов.')) return;
+          api('/departments/' + dep.id, { method:'DELETE' })
+            .then(function(){ departmentsState.selectedId = null; return loadDepartmentsPage(true); })
+            .catch(function(err){ alert(err.message); });
+        });
+
+        actions.appendChild(btnAdd);
+        actions.appendChild(btnEdit);
+        actions.appendChild(btnDel);
+        node.appendChild(actions);
+      }
+
+      node.addEventListener('click', function(){
+        departmentsState.selectedId = dep.id;
+        renderDepartmentsTree();
+        renderDepartmentDetails();
+        renderDepartmentsChart();
+      });
+
+      wrap.appendChild(node);
+
+      var children = byParent[String(dep.id)] || [];
+      if (children.length) {
+        wrap.classList.add('has-children');
+        var childrenRow = document.createElement('div');
+        childrenRow.className = 'org-children';
+        children.forEach(function(ch){
+          var childWrap = document.createElement('div');
+          childWrap.className = 'org-child';
+          childWrap.appendChild(createNode(ch));
+          childrenRow.appendChild(childWrap);
+        });
+        wrap.appendChild(childrenRow);
+      }
+      return wrap;
+    }
+
+    rootEl.innerHTML = '';
+    if (roots.length === 1) {
+      rootEl.appendChild(createNode(roots[0]));
+    } else {
+      // Несколько корней — показываем общий "верх" и все корни ниже
+      var top = document.createElement('div');
+      top.className = 'org-node';
+      top.style.cursor = 'default';
+      top.innerHTML = '<div class="org-node-title">Ген.Директор</div><div class="org-node-sub"><span>корень</span><span>'+roots.length+' направлений</span></div>';
+      var topWrap = document.createElement('div');
+      topWrap.className = 'org-node-wrap has-children';
+      topWrap.appendChild(top);
+      var row = document.createElement('div');
+      row.className = 'org-children';
+      roots.forEach(function(r){
+        var childWrap = document.createElement('div');
+        childWrap.className = 'org-child';
+        childWrap.appendChild(createNode(r));
+        row.appendChild(childWrap);
+      });
+      topWrap.appendChild(row);
+      rootEl.appendChild(topWrap);
+    }
+  }
+
+  function switchDepartmentsMode(mode) {
+    var treeWrap = document.getElementById('departments-mode-tree-wrap');
+    var chartWrap = document.getElementById('departments-mode-chart-wrap');
+    var btnTree = document.getElementById('departments-mode-tree');
+    var btnChart = document.getElementById('departments-mode-chart');
+    if (treeWrap) treeWrap.style.display = mode === 'tree' ? '' : 'none';
+    if (chartWrap) chartWrap.style.display = mode === 'chart' ? '' : 'none';
+    if (btnTree) btnTree.classList.toggle('btn-primary', mode === 'tree');
+    if (btnTree) btnTree.classList.toggle('btn-secondary', mode !== 'tree');
+    if (btnChart) btnChart.classList.toggle('btn-primary', mode === 'chart');
+    if (btnChart) btnChart.classList.toggle('btn-secondary', mode !== 'chart');
+    if (mode === 'chart') renderDepartmentsChart();
+  }
+
   function renderDepartmentDetails() {
     var selId = departmentsState.selectedId;
     var boxEmpty = document.getElementById('dept-selected-empty');
@@ -1742,6 +1965,9 @@
       renderDeptParentOptions(document.getElementById('dept-new-parent'), departmentsState.deps || [], true, null);
       renderDepartmentsTree();
       renderDepartmentDetails();
+      // если пользователь оставил режим "схема" — обновим схему
+      var chartWrap = document.getElementById('departments-mode-chart-wrap');
+      if (chartWrap && chartWrap.style.display !== 'none') renderDepartmentsChart();
       if (!silent) showDeptMsg('ok', 'Отделы загружены');
       if (treeEl && !(departmentsState.deps || []).length) {
         treeEl.innerHTML =
@@ -1765,6 +1991,12 @@
 
   if (document.getElementById('departments-refresh')) {
     document.getElementById('departments-refresh').addEventListener('click', function(){ loadDepartmentsPage(); });
+  }
+  if (document.getElementById('departments-mode-tree')) {
+    document.getElementById('departments-mode-tree').addEventListener('click', function(){ switchDepartmentsMode('tree'); });
+  }
+  if (document.getElementById('departments-mode-chart')) {
+    document.getElementById('departments-mode-chart').addEventListener('click', function(){ switchDepartmentsMode('chart'); });
   }
   if (document.getElementById('dept-new-create')) {
     document.getElementById('dept-new-create').addEventListener('click', function(){
