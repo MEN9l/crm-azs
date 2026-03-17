@@ -1069,14 +1069,12 @@
             <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
               <h2 style="margin:0;">Отделы</h2>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <button type="button" class="btn-secondary" id="departments-mode-tree">Список</button>
-                <button type="button" class="btn-secondary" id="departments-mode-chart">Схема</button>
                 <button type="button" class="btn-secondary" id="departments-sample">Заполнить пример</button>
                 <button type="button" class="btn-secondary" id="departments-refresh">Обновить</button>
               </div>
             </div>
             <div id="departments-msg" class="msg" style="display:none;"></div>
-            <div id="departments-mode-tree-wrap" class="dept-layout">
+            <div class="dept-layout">
               <div class="dept-left">
                 <div class="dept-card">
                   <div class="dept-card-title">Дерево отделов</div>
@@ -1140,12 +1138,10 @@
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-            <div id="departments-mode-chart-wrap" style="display:none;margin-top:14px;">
-              <div class="dept-card">
-                <div class="dept-card-title">Оргструктура</div>
-                <div id="departments-chart" class="org-chart"></div>
+                <div class="dept-card" style="margin-top:12px;">
+                  <div class="dept-card-title">Оргструктура</div>
+                  <div id="departments-chart" class="org-chart"></div>
+                </div>
               </div>
             </div>
           </div>
@@ -2409,17 +2405,19 @@
   }
 
   function switchDepartmentsMode(mode) {
-    var treeWrap = document.getElementById('departments-mode-tree-wrap');
-    var chartWrap = document.getElementById('departments-mode-chart-wrap');
-    var btnTree = document.getElementById('departments-mode-tree');
-    var btnChart = document.getElementById('departments-mode-chart');
-    if (treeWrap) treeWrap.style.display = mode === 'tree' ? '' : 'none';
-    if (chartWrap) chartWrap.style.display = mode === 'chart' ? '' : 'none';
-    if (btnTree) btnTree.classList.toggle('btn-primary', mode === 'tree');
-    if (btnTree) btnTree.classList.toggle('btn-secondary', mode !== 'tree');
-    if (btnChart) btnChart.classList.toggle('btn-primary', mode === 'chart');
-    if (btnChart) btnChart.classList.toggle('btn-secondary', mode !== 'chart');
-    if (mode === 'chart') renderDepartmentsChart();
+    // Раньше были "режимы". Теперь список и схема на одной странице.
+    // Оставляем функцию, чтобы не ломать существующие вызовы: используем как "перейти к".
+    if (mode === 'tree') {
+      var el = document.getElementById('departments-tree');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (mode === 'chart') {
+      var ch = document.getElementById('departments-chart');
+      if (ch) ch.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      renderDepartmentsChart();
+      return;
+    }
   }
 
   function renderDepartmentDetails() {
@@ -2494,9 +2492,8 @@
       renderDeptParentOptions(document.getElementById('dept-new-parent'), departmentsState.deps || [], true, null);
       renderDepartmentsTree();
       renderDepartmentDetails();
-      // если пользователь оставил режим "схема" — обновим схему
-      var chartWrap = document.getElementById('departments-mode-chart-wrap');
-      if (chartWrap && chartWrap.style.display !== 'none') renderDepartmentsChart();
+      // Схема всегда на странице — обновляем
+      renderDepartmentsChart();
       if (!silent) showDeptMsg('ok', 'Отделы загружены');
       if (treeEl && !(departmentsState.deps || []).length) {
         treeEl.innerHTML =
@@ -2521,12 +2518,7 @@
   if (document.getElementById('departments-refresh')) {
     document.getElementById('departments-refresh').addEventListener('click', function(){ loadDepartmentsPage(); });
   }
-  if (document.getElementById('departments-mode-tree')) {
-    document.getElementById('departments-mode-tree').addEventListener('click', function(){ switchDepartmentsMode('tree'); });
-  }
-  if (document.getElementById('departments-mode-chart')) {
-    document.getElementById('departments-mode-chart').addEventListener('click', function(){ switchDepartmentsMode('chart'); });
-  }
+  // кнопок режимов больше нет
   if (document.getElementById('departments-sample')) {
     document.getElementById('departments-sample').addEventListener('click', function(){
       createDepartmentsSample().catch(function(e){ alert(e.message || 'Ошибка'); });
