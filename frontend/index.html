@@ -4467,6 +4467,19 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  // защита от дублей (WS иногда может доставлять/обрабатываться повторно при переподключении)
+  var chatSeenMsgIds = new Set();
+  function markSeenFromDom() {
+    try {
+      var root = document.getElementById('chat-messages');
+      if (!root) return;
+      root.querySelectorAll('[data-msg-id]').forEach(function(el){
+        var id = el.getAttribute('data-msg-id');
+        if (id) chatSeenMsgIds.add(String(id));
+      });
+    } catch (_) {}
+  }
+
   function connectChatWs(chatId) {
     if (chatReconnectTimer) { clearTimeout(chatReconnectTimer); chatReconnectTimer = null; }
     if (chatWs) { chatWs.close(); chatWs = null; }
@@ -4480,6 +4493,11 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     ws.onmessage = function(ev) {
       try {
         var m = typeof ev.data === 'string' ? JSON.parse(ev.data) : ev.data;
+        if (m && m.id != null) {
+          var mid = String(m.id);
+          if (chatSeenMsgIds.has(mid)) return;
+          chatSeenMsgIds.add(mid);
+        }
         var content = m.content != null ? m.content : (m.message != null ? m.message : m.text);
         if (content == null) content = '';
         var me = getUser();
@@ -4520,6 +4538,11 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       if (Array.isArray(chats) && chats.length) {
         var ids = chats.map(function(c){ return c.id; });
         if (!currentChatId || ids.indexOf(currentChatId) === -1) currentChatId = chats[0].id;
+      }
+      if (!Array.isArray(chats) || !chats.length) {
+        channelsEl.innerHTML = '<li class="active">Нет доступных чатов</li>';
+        messagesEl.innerHTML = '<div class="msg">Нет доступных чатов для вашего пользователя.</div>';
+        return;
       }
       channelsEl.innerHTML = chats.map(c => '<li data-id="'+c.id+'" class="'+(c.id===currentChatId?'active':'')+'">'+(c.name||c.type)+'</li>').join('');
       channelsEl.querySelectorAll('li').forEach(li => {
@@ -4587,7 +4610,7 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       var html = list.map(m => {
         const name = (m.sender && m.sender.full_name) ? escapeHtml(m.sender.full_name) + ': ' : '';
         var attHtml = (m.attachments && m.attachments.length) ? m.attachments.map(function(a){ var safe = (a.original_name||'').replace(/"/g,'&quot;'); return '<button type="button" class="chat-att-dl" style="margin-right:8px;font-size:12px;background:none;border:none;color:var(--accent);cursor:pointer;padding:0;" data-att-id="'+a.id+'" data-name="'+safe+'">📎 '+escapeHtml(a.original_name)+'</button>'; }).join('') : '';
-        return '<div class="chat-message"><span class="chat-message-content">'+name+escapeHtml(m.content)+(attHtml ? '<div style="margin-top:4px">'+attHtml+'</div>' : '')+'</span><span class="chat-message-time">'+formatDate(m.created_at)+'</span></div>';
+        return '<div class="chat-message" data-msg-id="'+m.id+'"><span class="chat-message-content">'+name+escapeHtml(m.content)+(attHtml ? '<div style="margin-top:4px">'+attHtml+'</div>' : '')+'</span><span class="chat-message-time">'+formatDate(m.created_at)+'</span></div>';
       }).join('');
       if (append && moreWrap && moreWrap.nextSibling) {
         var insertBefore = moreWrap.nextSibling;
@@ -4601,6 +4624,7 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       loadChatMessages.offset = offset + list.length;
       if (moreWrap) moreWrap.style.display = list.length >= 50 ? 'block' : 'none';
       if (!append) messagesEl.scrollTop = messagesEl.scrollHeight;
+      markSeenFromDom();
     } catch (_) {
       if (!append) messagesEl.innerHTML = '<div class="msg err">Не удалось загрузить сообщения</div>';
     }
