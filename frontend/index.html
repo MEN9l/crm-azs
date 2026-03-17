@@ -186,6 +186,50 @@
     .dept-assign-select select { width: 100%; }
     .dept-assign-hint { font-size: 12px; color: var(--text-muted); }
     @media (max-width: 560px) { .dept-assign-select { min-width: 100%; } }
+    .dept-assign-input {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: var(--text);
+      font-size: 14px;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .dept-assign-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .dept-select-wrap {
+      position: relative;
+      width: 100%;
+    }
+    .dept-select-wrap::before {
+      content: "👤";
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      opacity: 0.75;
+      pointer-events: none;
+    }
+    .dept-select-wrap::after {
+      content: "▾";
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+    .dept-select-wrap select {
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      padding-left: 34px !important;
+      padding-right: 30px !important;
+      border-radius: 12px !important;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .dept-select-wrap select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
     .org-chart { margin-top: 10px; overflow: hidden; padding: 0; position: relative; min-height: 62vh; border-radius: 16px; border: 1px solid var(--border-subtle); background: radial-gradient(ellipse 120% 80% at 50% 0%, rgba(14,165,233,0.08), transparent 55%), rgba(0,0,0,0.04); }
     body.theme-light .org-chart { background: radial-gradient(ellipse 120% 80% at 50% 0%, rgba(2,132,199,0.10), transparent 55%), rgba(2,132,199,0.03); }
@@ -1147,7 +1191,10 @@
                             <div class="dept-assign-hint">Выберите сотрудника и нажмите «Назначить»</div>
                           </div>
                           <div class="dept-assign-select">
-                            <select id="dept-add-user"></select>
+                            <input type="text" id="dept-add-user-search" class="dept-assign-input" placeholder="Быстрый поиск по ФИО или email…" />
+                            <div class="dept-select-wrap" style="margin-top:8px;">
+                              <select id="dept-add-user"></select>
+                            </div>
                           </div>
                           <button type="button" class="btn-secondary" id="dept-add-user-btn">Назначить</button>
                         </div>
@@ -2484,16 +2531,33 @@
     }
 
     var addSel = document.getElementById('dept-add-user');
+    var searchEl = document.getElementById('dept-add-user-search');
     if (addSel) {
-      var candidates = (departmentsState.users || []).filter(function(u){ return u.department_id !== selId; });
-      addSel.innerHTML = '<option value="">— выбрать сотрудника</option>' + candidates.map(function(u){
-        var deptName = '';
-        if (u.department_id) {
-          var d2 = (departmentsState.deps || []).find(function(d){ return d.id === u.department_id; });
-          deptName = d2 ? (' · ' + d2.name) : '';
-        }
-        return '<option value="'+u.id+'">'+escapeHtml(u.full_name + ' ('+u.email+')' + deptName)+'</option>';
-      }).join('');
+      var baseCandidates = (departmentsState.users || []).filter(function(u){ return u.department_id !== selId; });
+      addSel._candidates = baseCandidates;
+      function renderCandidates(list) {
+        addSel.innerHTML = '<option value="">— выбрать сотрудника</option>' + list.map(function(u){
+          var deptName = '';
+          if (u.department_id) {
+            var d2 = (departmentsState.deps || []).find(function(d){ return d.id === u.department_id; });
+            deptName = d2 ? (' · ' + d2.name) : '';
+          }
+          return '<option value="'+u.id+'">'+escapeHtml(u.full_name + ' ('+u.email+')' + deptName)+'</option>';
+        }).join('');
+      }
+      renderCandidates(baseCandidates);
+      if (searchEl) {
+        searchEl.value = '';
+        searchEl.oninput = function() {
+          var q = (searchEl.value || '').trim().toLowerCase();
+          if (!q) { renderCandidates(baseCandidates); return; }
+          var filtered = baseCandidates.filter(function(u){
+            var s = ((u.full_name||'') + ' ' + (u.email||'')).toLowerCase();
+            return s.indexOf(q) !== -1;
+          });
+          renderCandidates(filtered);
+        };
+      }
     }
   }
 
