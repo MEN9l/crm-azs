@@ -134,6 +134,52 @@
     .table tbody tr { transition: background var(--transition); }
     .table tbody tr:hover { background: var(--accent-soft); }
     .table .ticket-row { cursor: pointer; }
+    .tickets-toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .tickets-toolbar h2 { margin: 0; }
+    .tickets-toolbar-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+    .tickets-input, .tickets-select {
+      padding: 6px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--input-bg);
+      color: var(--text);
+      font-size: 14px;
+      max-width: 100%;
+    }
+    .tickets-input { width: 220px; }
+    .tickets-input.tickets-input-sm { width: 140px; }
+    .tickets-summary { margin-top: 10px; display: flex; justify-content: space-between; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .tickets-summary .hint { font-size: 12px; color: var(--text-muted); }
+    .empty-state { margin-top: 14px; border: 1px dashed var(--border-subtle); border-radius: var(--radius-lg); padding: 18px; background: rgba(0,0,0,0.08); }
+    body.theme-light .empty-state { background: rgba(2, 132, 199, 0.04); }
+    .empty-state-title { font-weight: 700; margin: 0 0 6px; }
+    .empty-state-text { margin: 0; color: var(--text-muted); font-size: 14px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+    .badge-status-new { background: rgba(14, 165, 233, 0.14); color: #7dd3fc; border-color: rgba(14, 165, 233, 0.35); }
+    .badge-status-in_progress { background: rgba(234, 179, 8, 0.14); color: #fde68a; border-color: rgba(234, 179, 8, 0.35); }
+    .badge-status-done { background: rgba(34, 197, 94, 0.14); color: #86efac; border-color: rgba(34, 197, 94, 0.35); }
+    .badge-status-canceled { background: rgba(148, 163, 184, 0.14); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.35); }
+    body.theme-light .badge-status-new { color: #0369a1; }
+    body.theme-light .badge-status-in_progress { color: #92400e; }
+    body.theme-light .badge-status-done { color: #166534; }
+    body.theme-light .badge-status-canceled { color: #475569; }
+    .badge-priority-low { background: rgba(148, 163, 184, 0.12); color: #cbd5e1; }
+    .badge-priority-normal { background: rgba(14, 165, 233, 0.10); color: #bae6fd; }
+    .badge-priority-high { background: rgba(244, 63, 94, 0.12); color: #fda4af; border-color: rgba(244, 63, 94, 0.35); }
+    body.theme-light .badge-priority-low { color: #475569; }
+    body.theme-light .badge-priority-normal { color: #075985; }
+    body.theme-light .badge-priority-high { color: #9f1239; }
     .msg { padding: 12px 14px; border-radius: var(--radius); margin-bottom: 10px; font-size: 14px; }
     .msg.err { background: rgba(244, 63, 94, 0.15); border: 1px solid var(--err); color: #fda4af; }
     body.theme-light .msg.err { color: #b91c3c; }
@@ -269,7 +315,7 @@
     .chat-message-time { font-size: 11px; color: var(--text-muted); margin-top: 4px; margin-left: 4px; }
     .chat-input-row { display: flex; flex-shrink: 0; border-top: 1px solid var(--border-subtle); padding: 12px; gap: 10px; align-items: center; }
     .chat-input-row input {
-      flex: 1; min-width: 0; maxlength: 5000;
+      flex: 1; min-width: 0;
       border-radius: 999px;
       border: 1px solid var(--border);
       padding: 10px 16px;
@@ -721,12 +767,12 @@
         </div>
         <div id="view-tickets" class="view" style="display:none">
           <div class="card">
-            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-              <h2 style="margin:0;">Заявки</h2>
-              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                <input type="text" id="tickets-search" placeholder="Поиск по названию или описанию..." style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);width:220px;max-width:100%;" />
+            <div class="tickets-toolbar">
+              <h2>Заявки</h2>
+              <div class="tickets-toolbar-controls">
+                <input type="text" class="tickets-input" id="tickets-search" placeholder="Поиск по названию или описанию..." />
                 <label style="margin:0;font-size:13px;">Статус:</label>
-                <select id="tickets-filter-status" data-tooltip="Фильтр по статусу заявки" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);">
+                <select id="tickets-filter-status" class="tickets-select" data-tooltip="Фильтр по статусу заявки">
                   <option value="">Все</option>
                   <option value="new">Новая</option>
                   <option value="in_progress">В работе</option>
@@ -734,12 +780,21 @@
                   <option value="canceled">Отменена</option>
                 </select>
                 <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-size:13px;cursor:pointer;" data-tooltip="Только заявки со сроком на эту неделю"><input type="checkbox" id="tickets-due-week" /> На эту неделю</label>
-                <input type="text" id="tickets-filter-tag" data-tooltip="Фильтр по тегу" placeholder="Тег..." style="padding:6px 10px;width:120px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);" />
+                <input type="text" class="tickets-input tickets-input-sm" id="tickets-filter-tag" data-tooltip="Фильтр по тегу" placeholder="Тег..." />
                 <button type="button" class="btn-secondary" id="tickets-export-btn" data-tooltip="Скачать список заявок в CSV">Экспорт в CSV</button>
+                <button type="button" class="btn-secondary" id="tickets-clear-filters">Сбросить</button>
                 <button type="button" class="btn-primary" id="ticket-create-btn">Создать заявку</button>
               </div>
             </div>
+            <div class="tickets-summary">
+              <div class="hint" id="tickets-summary-text">—</div>
+              <div class="hint" id="tickets-summary-filters" style="text-align:right;"></div>
+            </div>
             <div id="tickets-loading" style="display:none;"></div>
+            <div id="tickets-empty" class="empty-state" style="display:none;">
+              <p class="empty-state-title">Ничего не найдено</p>
+              <p class="empty-state-text">Попробуйте изменить поиск/фильтры или создайте новую заявку.</p>
+            </div>
             <div class="table-wrap">
               <table class="table" id="tickets-table" style="display:none"></table>
             </div>
@@ -1628,6 +1683,9 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     const wrap = document.getElementById('tickets-table');
     const loading = document.getElementById('tickets-loading');
     const moreWrap = document.getElementById('tickets-more-wrap');
+    const emptyEl = document.getElementById('tickets-empty');
+    const summaryTextEl = document.getElementById('tickets-summary-text');
+    const summaryFiltersEl = document.getElementById('tickets-summary-filters');
     var statusFilter = document.getElementById('tickets-filter-status').value;
     var searchQ = (document.getElementById('tickets-search') && document.getElementById('tickets-search').value) ? document.getElementById('tickets-search').value.trim() : '';
     if (!append) loadTickets.offset = 0;
@@ -1635,7 +1693,11 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     loading.style.display = 'block';
     loading.className = 'skeleton-wrap';
     loading.innerHTML = getSkeletonTableHtml(5);
-    if (!append) { wrap.style.display = 'none'; if (wrap.parentElement && wrap.parentElement.classList.contains('table-wrap')) wrap.parentElement.style.display = 'none'; }
+    if (!append) {
+      wrap.style.display = 'none';
+      if (wrap.parentElement && wrap.parentElement.classList.contains('table-wrap')) wrap.parentElement.style.display = 'none';
+      if (emptyEl) emptyEl.style.display = 'none';
+    }
     var params = [];
     if (statusFilter) params.push('status=' + encodeURIComponent(statusFilter));
     if (searchQ) params.push('q=' + encodeURIComponent(searchQ));
@@ -1651,13 +1713,48 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       ticketsAccum = ticketsAccum.concat(list);
       loadTickets.offset = offset + list.length;
       loading.style.display = 'none';
+      if (summaryTextEl) summaryTextEl.textContent = 'Показано: ' + ticketsAccum.length;
+      if (summaryFiltersEl) {
+        var parts = [];
+        if (searchQ) parts.push('поиск: «' + searchQ + '»');
+        if (statusFilter) parts.push('статус: ' + statusLabel(statusFilter));
+        if (tagFilter) parts.push('тег: ' + tagFilter);
+        if (document.getElementById('tickets-due-week') && document.getElementById('tickets-due-week').checked) parts.push('на эту неделю');
+        summaryFiltersEl.textContent = parts.length ? ('Фильтры: ' + parts.join(' · ')) : '';
+      }
+
+      if (!ticketsAccum.length) {
+        wrap.style.display = 'none';
+        if (wrap.parentElement && wrap.parentElement.classList.contains('table-wrap')) wrap.parentElement.style.display = 'none';
+        if (emptyEl) emptyEl.style.display = 'block';
+        if (moreWrap) moreWrap.style.display = 'none';
+        return;
+      }
+
       wrap.style.display = 'table';
       if (wrap.parentElement && wrap.parentElement.classList.contains('table-wrap')) wrap.parentElement.style.display = 'block';
       var tbody = wrap.querySelector('tbody');
       if (!tbody) wrap.innerHTML = '<thead><tr><th>ID</th><th>Название</th><th>Статус</th><th>Приоритет</th><th>АЗС</th><th>Срок</th><th>Создана</th></tr></thead><tbody></tbody>';
       tbody = wrap.querySelector('tbody');
       if (!append) tbody.innerHTML = '';
-      var rowsHtml = list.map(t => { var overdue = isOverdue(t.due_date, t.status); var rowClass = 'ticket-row' + (overdue ? ' ticket-overdue' : ''); var tagsStr = t.tags ? '<br><span style="font-size:11px;color:var(--text-muted);">'+escapeHtml(t.tags)+'</span>' : ''; return '<tr class="'+rowClass+'" data-id="'+t.id+'" style="cursor:pointer"><td>'+t.id+'</td><td>'+escapeHtml(t.title)+tagsStr+'</td><td>'+t.status+'</td><td>'+t.priority+'</td><td>'+(t.station_id || (t.station&&t.station.code) || '—')+'</td><td>'+(overdue ? '<span class="text-overdue">'+formatDateOnly(t.due_date)+' (просрочено)</span>' : formatDateOnly(t.due_date))+'</td><td>'+formatDate(t.created_at)+'</td></tr>'; }).join('');
+      var rowsHtml = list.map(t => {
+        var overdue = isOverdue(t.due_date, t.status);
+        var rowClass = 'ticket-row' + (overdue ? ' ticket-overdue' : '');
+        var tagsStr = t.tags ? '<br><span style="font-size:11px;color:var(--text-muted);">'+escapeHtml(t.tags)+'</span>' : '';
+        var st = t.status || 'new';
+        var pr = t.priority || 'normal';
+        var statusBadge = '<span class="badge badge-status-' + st + '">' + statusLabel(st) + '</span>';
+        var prBadge = '<span class="badge badge-priority-' + pr + '">' + priorityLabel(pr) + '</span>';
+        return '<tr class="'+rowClass+'" data-id="'+t.id+'" style="cursor:pointer">' +
+          '<td>'+t.id+'</td>' +
+          '<td>'+escapeHtml(t.title || '')+tagsStr+'</td>' +
+          '<td>'+statusBadge+'</td>' +
+          '<td>'+prBadge+'</td>' +
+          '<td>'+(t.station_id || (t.station&&t.station.code) || '—')+'</td>' +
+          '<td>'+(overdue ? '<span class="text-overdue">'+formatDateOnly(t.due_date)+' (просрочено)</span>' : formatDateOnly(t.due_date))+'</td>' +
+          '<td>'+formatDate(t.created_at)+'</td>' +
+        '</tr>';
+      }).join('');
       tbody.insertAdjacentHTML('beforeend', rowsHtml);
       wrap.querySelectorAll('.ticket-row').forEach(function(row){ row.addEventListener('click', function(){ openTicket(parseInt(row.getAttribute('data-id'),10)); }); });
       if (moreWrap) moreWrap.style.display = list.length >= 30 ? 'block' : 'none';
@@ -1668,6 +1765,15 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       loading.style.display = 'block';
       if (moreWrap) moreWrap.style.display = 'none';
     }
+  }
+
+  function statusLabel(v) {
+    var map = { new: 'Новая', in_progress: 'В работе', done: 'Выполнена', canceled: 'Отменена' };
+    return map[v] || v || '—';
+  }
+  function priorityLabel(v) {
+    var map = { low: 'Низкий', normal: 'Обычный', high: 'Высокий' };
+    return map[v] || v || '—';
   }
 
   let currentTicketId = null;
@@ -1751,6 +1857,15 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
   if (document.getElementById('tickets-due-week')) document.getElementById('tickets-due-week').addEventListener('change', function(){ loadTickets(); });
   if (document.getElementById('tickets-filter-tag')) { var tagT; document.getElementById('tickets-filter-tag').addEventListener('input', function(){ clearTimeout(tagT); tagT = setTimeout(loadTickets, 400); }); }
   document.getElementById('tickets-load-more').addEventListener('click', function(){ loadTickets(true); });
+  if (document.getElementById('tickets-clear-filters')) {
+    document.getElementById('tickets-clear-filters').addEventListener('click', function(){
+      var s = document.getElementById('tickets-search'); if (s) s.value = '';
+      var st = document.getElementById('tickets-filter-status'); if (st) st.value = '';
+      var tg = document.getElementById('tickets-filter-tag'); if (tg) tg.value = '';
+      var dw = document.getElementById('tickets-due-week'); if (dw) dw.checked = false;
+      loadTickets();
+    });
+  }
   var ticketsSearchEl = document.getElementById('tickets-search');
   if (ticketsSearchEl) {
     var searchTimeout;
