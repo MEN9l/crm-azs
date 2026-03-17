@@ -1473,18 +1473,14 @@
           <div class="chat-layout">
             <aside class="chat-sidebar">
               <div class="chat-sidebar-search">
-                <input id="chat-search" type="text" placeholder="Поиск по сотрудникам и чатам" autocomplete="off" />
+                <input id="chat-search" type="text" placeholder="Поиск по чатам" autocomplete="off" />
                 <span class="chat-sidebar-search-icon">🔍</span>
               </div>
               <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;">
-                <div style="display:flex;gap:8px;align-items:center;">
-                  <button type="button" class="btn-secondary" id="chat-tab-chats" style="padding:6px 10px;">Чаты</button>
-                  <button type="button" class="btn-secondary" id="chat-tab-users" style="padding:6px 10px;">Пользователи</button>
-                </div>
-                <button type="button" class="btn-primary" id="chat-group-create" style="padding:6px 10px;display:none;">+ Группа</button>
+                <div style="font-size:13px;color:var(--text-muted);font-weight:600;">Все чаты</div>
+                <button type="button" class="chat-widget-btn" id="chat-settings-btn" title="Управление группами" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;">⚙</button>
               </div>
               <ul id="chat-channels"></ul>
-              <ul id="chat-users" style="display:none;list-style:none;margin:0;padding:0;"></ul>
               <div id="chat-members-block" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border-subtle);display:none;">
                 <h4 style="margin:0 0 8px;font-size:13px;color:var(--text-muted);">Участники</h4>
                 <ul id="chat-members-list" style="list-style:none;margin:0;padding:0;font-size:13px;"></ul>
@@ -4619,25 +4615,8 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
 
   async function loadChat() {
     const channelsEl = document.getElementById('chat-channels');
-    const usersEl = document.getElementById('chat-users');
     const messagesEl = document.getElementById('chat-messages');
-    const tabChats = document.getElementById('chat-tab-chats');
-    const tabUsers = document.getElementById('chat-tab-users');
-    const groupCreateBtn = document.getElementById('chat-group-create');
-    const u = getUser();
-    const isAdmin = u && (u.role === 'admin' || u.role === 'chief');
-    if (groupCreateBtn) groupCreateBtn.style.display = isAdmin ? '' : 'none';
-
-    function setTab(name) {
-      var isChats = name === 'chats';
-      if (channelsEl) channelsEl.style.display = isChats ? '' : 'none';
-      if (usersEl) usersEl.style.display = isChats ? 'none' : '';
-      if (tabChats) tabChats.style.opacity = isChats ? '1' : '0.7';
-      if (tabUsers) tabUsers.style.opacity = isChats ? '0.7' : '1';
-    }
-    if (tabChats && !tabChats._inited) { tabChats._inited = true; tabChats.addEventListener('click', function(){ setTab('chats'); }); }
-    if (tabUsers && !tabUsers._inited) { tabUsers._inited = true; tabUsers.addEventListener('click', function(){ setTab('users'); loadChatContacts(); }); }
-    setTab('chats');
+    const searchEl = document.getElementById('chat-search');
     try {
       const chats = await api('/chat/chats');
       if (Array.isArray(chats) && chats.length) {
@@ -4650,28 +4629,41 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
         return;
       }
       var um = getUnreadMap();
-      channelsEl.innerHTML = chats.map(function(c){
-        var id = c.id;
-        var name = c.name || (c.type === 'direct' ? 'Личный чат' : 'Чат #'+id);
-        var sub = (c.type === 'group' ? 'Группа' : (c.type === 'direct' ? 'Личное' : (c.type === 'station' ? 'АЗС' : c.type || '')));
-        var initials = name.split(' ').map(function(p){ return p[0] || ''; }).join('').slice(0,2).toUpperCase();
-        var cnt = um[String(id)] ? (parseInt(um[String(id)],10) || 0) : 0;
-        var badge = cnt ? ('<div class="chat-unread-badge">'+(cnt>9?'9+':cnt)+'</div>') : '';
-        return '<li class="chat-item '+(id===currentChatId?'active':'')+'" data-id="'+id+'">'+
-          '<div class="chat-avatar">'+initials+'</div>'+
-          '<div class="chat-main"><div class="chat-main-title">'+escapeHtml(name)+'</div><div class="chat-main-sub">'+escapeHtml(sub||'')+'</div></div>'+
-          '<div class="chat-meta">'+badge+'</div>'+
-        '</li>';
-      }).join('');
-      channelsEl.querySelectorAll('.chat-item').forEach(li => {
-        li.addEventListener('click', () => {
-          currentChatId = parseInt(li.getAttribute('data-id'),10);
-          channelsEl.querySelectorAll('.chat-item').forEach(l=>l.classList.remove('active')); li.classList.add('active');
-          loadChatMessages();
-          connectChatWs(currentChatId);
-          loadChatMembers(currentChatId);
+      function render(filter) {
+        var f = (filter || '').toLowerCase();
+        var list = chats.filter(function(c){
+          if (!f) return true;
+          var name = (c.name || '').toLowerCase();
+          return name.indexOf(f) !== -1;
         });
-      });
+        channelsEl.innerHTML = list.map(function(c){
+          var id = c.id;
+          var name = c.name || (c.type === 'direct' ? 'Личный чат' : 'Чат #'+id);
+          var sub = (c.type === 'group' ? 'Группа' : (c.type === 'direct' ? 'Личное' : (c.type === 'station' ? 'АЗС' : c.type || '')));
+          var initials = name.split(' ').map(function(p){ return p[0] || ''; }).join('').slice(0,2).toUpperCase();
+          var cnt = um[String(id)] ? (parseInt(um[String(id)],10) || 0) : 0;
+          var badge = cnt ? ('<div class="chat-unread-badge">'+(cnt>9?'9+':cnt)+'</div>') : '';
+          return '<li class="chat-item '+(id===currentChatId?'active':'')+'" data-id="'+id+'">'+
+            '<div class="chat-avatar">'+initials+'</div>'+
+            '<div class="chat-main"><div class="chat-main-title">'+escapeHtml(name)+'</div><div class="chat-main-sub">'+escapeHtml(sub||'')+'</div></div>'+
+            '<div class="chat-meta">'+badge+'</div>'+
+          '</li>';
+        }).join('');
+        channelsEl.querySelectorAll('.chat-item').forEach(function(li){
+          li.addEventListener('click', function(){
+            currentChatId = parseInt(li.getAttribute('data-id'),10);
+            channelsEl.querySelectorAll('.chat-item').forEach(function(l){ l.classList.remove('active'); }); li.classList.add('active');
+            loadChatMessages();
+            connectChatWs(currentChatId);
+            loadChatMembers(currentChatId);
+          });
+        });
+      }
+      render(searchEl && searchEl.value || '');
+      if (searchEl && !searchEl._initedChats) {
+        searchEl._initedChats = true;
+        searchEl.addEventListener('input', function(){ render(searchEl.value || ''); });
+      }
       loadChatMessages();
       connectChatWs(currentChatId);
       loadChatMembers(currentChatId);
@@ -4683,47 +4675,7 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
   }
 
   async function loadChatContacts() {
-    var usersEl = document.getElementById('chat-users');
-    var searchEl = document.getElementById('chat-search');
-    if (!usersEl) return;
-    usersEl.innerHTML = '<li style="color:var(--text-muted);padding:10px 12px;">Загрузка…</li>';
-    try {
-      var list = await api('/chat/contacts');
-      function render(filter) {
-        var f = (filter || '').toLowerCase();
-        usersEl.innerHTML = list.filter(function(u){
-          if (!f) return true;
-          var s = ((u.full_name || '')+' '+(u.email || '')+' '+(u.position || '')).toLowerCase();
-          return s.indexOf(f) !== -1;
-        }).map(function(u){
-        var name = escapeHtml(u.full_name || u.email);
-        var meta = (u.is_office ? 'офис' : 'АЗС') + (u.position ? (' • ' + escapeHtml(u.position)) : '');
-        return '<li class="chat-user-item" data-user-id="'+u.id+'" style="padding:10px 12px;border-radius:12px;cursor:pointer;transition:background var(--transition);"><div style="font-weight:800;font-size:13px;">'+name+'</div><div style="font-size:12px;color:var(--text-muted);margin-top:4px;">'+meta+'</div></li>';
-        }).join('');
-      }
-      render(searchEl && searchEl.value || '');
-      usersEl.querySelectorAll('.chat-user-item').forEach(function(li){
-        li.addEventListener('mouseenter', function(){ li.style.background = 'var(--border-subtle)'; });
-        li.addEventListener('mouseleave', function(){ li.style.background = ''; });
-        li.addEventListener('click', async function(){
-          var uid = parseInt(li.getAttribute('data-user-id')||'0',10);
-          if (!uid) return;
-          try {
-            var chat = await api('/chat/direct/'+uid, { method: 'POST', body: '{}' });
-            // переключаемся в таб "Чаты" и открываем чат
-            try { document.getElementById('chat-tab-chats').click(); } catch(_) {}
-            currentChatId = chat.id;
-            await loadChat();
-          } catch (e) { alert(e.message); }
-        });
-      });
-      if (searchEl && !searchEl._initedUsers) {
-        searchEl._initedUsers = true;
-        searchEl.addEventListener('input', function(){ render(searchEl.value || ''); });
-      }
-    } catch (e) {
-      usersEl.innerHTML = '<li style="color:var(--err);padding:10px 12px;">'+escapeHtml(e.message || 'Не удалось загрузить пользователей')+'</li>';
-    }
+    // вкладка "Пользователи" скрыта, функция оставлена на будущее
   }
   async function loadChatMembers(chatId) {
     var block = document.getElementById('chat-members-block');
@@ -4782,8 +4734,9 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
   });
 
   // админ: управление группами
-  if (document.getElementById('chat-group-create')) {
-    document.getElementById('chat-group-create').addEventListener('click', async function(){
+  if (document.getElementById('chat-settings-btn')) {
+    document.getElementById('chat-settings-btn').addEventListener('click', async function(){
+      // простое меню: сейчас только "создать группу"
       var name = prompt('Название группы');
       if (!name) return;
       try {
