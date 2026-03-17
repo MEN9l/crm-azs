@@ -4600,7 +4600,7 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     if (!sel || !sel.value) return;
     api('/chat/chats/'+currentChatId+'/members', { method: 'POST', body: JSON.stringify({ user_id: parseInt(sel.value,10) }) }).then(function(){ loadChatMembers(currentChatId); sel.value = ''; }).catch(function(e){ alert(e.message); });
   });
-  async function loadChatMessages(append) {
+  async function loadChatMessages(append, _retry) {
     const messagesEl = document.getElementById('chat-messages');
     const moreWrap = document.getElementById('chat-load-more-wrap');
     if (!append) loadChatMessages.offset = 0;
@@ -4625,8 +4625,19 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       if (moreWrap) moreWrap.style.display = list.length >= 50 ? 'block' : 'none';
       if (!append) messagesEl.scrollTop = messagesEl.scrollHeight;
       markSeenFromDom();
-    } catch (_) {
-      if (!append) messagesEl.innerHTML = '<div class="msg err">Не удалось загрузить сообщения</div>';
+    } catch (e) {
+      // если чат сменился/стал недоступен — попробуем выбрать первый доступный и повторить один раз
+      if (!_retry) {
+        try {
+          var chats = await api('/chat/chats');
+          if (Array.isArray(chats) && chats.length) {
+            var ids = chats.map(function(c){ return c.id; });
+            if (!currentChatId || ids.indexOf(currentChatId) === -1) currentChatId = chats[0].id;
+            return await loadChatMessages(append, true);
+          }
+        } catch (_) {}
+      }
+      if (!append) messagesEl.innerHTML = '<div class="msg err">' + escapeHtml((e && e.message) ? e.message : 'Не удалось загрузить сообщения') + '</div>';
     }
   }
   document.getElementById('chat-messages').addEventListener('click', function(e){
@@ -4790,7 +4801,7 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       el.scrollTop = el.scrollHeight;
     }
   }
-  async function loadWidgetMessages(append) {
+  async function loadWidgetMessages(append, _retry) {
     if (!widgetChatId) return;
     if (!loadWidgetMessages.offset) loadWidgetMessages.offset = 0;
     if (!append) loadWidgetMessages.offset = 0;
@@ -4807,9 +4818,19 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       loadWidgetMessages.offset = offset + list.length;
       renderWidgetMessages(list, append);
       if (!append && box && shouldStick) box.scrollTop = box.scrollHeight;
-    } catch (_) {
+    } catch (e) {
+      if (!_retry) {
+        try {
+          var chats = await api('/chat/chats');
+          if (Array.isArray(chats) && chats.length) {
+            var ids = chats.map(function(c){ return c.id; });
+            if (!widgetChatId || ids.indexOf(widgetChatId) === -1) widgetChatId = chats[0].id;
+            return await loadWidgetMessages(append, true);
+          }
+        } catch (_) {}
+      }
       var el = document.getElementById('chat-widget-messages');
-      if (el && !append) el.innerHTML = '<div class="msg err">Не удалось загрузить сообщения</div>';
+      if (el && !append) el.innerHTML = '<div class="msg err">' + escapeHtml((e && e.message) ? e.message : 'Не удалось загрузить сообщения') + '</div>';
     }
   }
   function closeWidgetWs() {
