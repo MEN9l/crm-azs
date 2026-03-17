@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -75,3 +75,18 @@ class Task(Base):
     assignee = relationship("User")
     department = relationship("Department")
 
+
+class TaskChecklistItem(Base):
+    __tablename__ = "task_checklist_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    task_id: Mapped[int] = mapped_column(ForeignKey("tasks.id", ondelete="CASCADE"), index=True)
+    station_name: Mapped[str] = mapped_column(String(255))
+
+    is_done: Mapped[bool] = mapped_column(Boolean, default=False)
+    done_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    done_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    task = relationship("Task", backref="checklist_items")
+    done_by = relationship("User")

@@ -844,6 +844,11 @@
     .modal-box select:focus, .modal-box input:focus, .modal-box textarea:focus { outline: none; border-color: var(--accent); }
     .modal-comments { margin-top: 16px; border-top: 1px solid var(--border-subtle); padding-top: 14px; max-height: 220px; overflow-y: auto; }
     .modal-comment { font-size: 14px; margin-bottom: 10px; padding: 10px 12px; background: var(--input-bg); border-radius: var(--radius); border: 1px solid var(--border-subtle); }
+    .checklist-item { display:flex; align-items:flex-start; gap:10px; }
+    .checklist-item input[type="checkbox"] { margin-top: 2px; width: 16px; height: 16px; accent-color: var(--accent); }
+    .checklist-title { font-weight: 650; }
+    .checklist-meta { margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+    .checklist-done .checklist-title { text-decoration: line-through; color: var(--text-muted); }
     .modal-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
     .modal-actions button { padding: 10px 18px; border-radius: var(--radius); border: none; cursor: pointer; font-weight: 500; font-size: 14px; transition: opacity var(--transition), transform 0.1s; }
     .modal-actions button:active { transform: scale(0.98); }
@@ -1657,6 +1662,30 @@
       <p id="task-modal-description" style="color:var(--text-muted);font-size:14px;margin-bottom:12px;"></p>
       <label id="task-modal-department-label">Отдел-исполнитель</label>
       <select id="task-modal-department"></select>
+      <div class="section" style="margin-top:14px;">
+        <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <h4 style="margin:0;">Чек-лист АЗС</h4>
+          <div id="task-checklist-progress" style="font-size:12px;color:var(--text-muted);font-weight:600;">0/0</div>
+        </div>
+        <div class="section-body" style="margin-top:10px;">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+            <input type="text" id="task-checklist-search" placeholder="Поиск по АЗС..." style="flex:1;min-width:180px;" />
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);">
+              <input type="checkbox" id="task-checklist-hide-done" />
+              Скрыть выполненные
+            </label>
+          </div>
+          <div id="task-checklist-list" class="modal-comments" style="max-height:260px;overflow:auto;"></div>
+          <div style="margin-top:10px;">
+            <label style="font-size:12px;color:var(--text-muted);">Добавить АЗС списком (каждая с новой строки)</label>
+            <textarea id="task-checklist-bulk" rows="4" placeholder="АЗС 001&#10;АЗС 002&#10;АЗС 003" style="margin-top:6px;"></textarea>
+            <div class="modal-actions" style="margin-top:10px;justify-content:flex-start;gap:10px;">
+              <button type="button" class="btn-primary" id="task-checklist-add">Добавить</button>
+              <button type="button" class="btn-secondary" id="task-checklist-clear">Очистить поле</button>
+            </div>
+          </div>
+        </div>
+      </div>
       <label>История изменений</label>
       <div id="task-modal-history" class="modal-comments" style="max-height:120px;"></div>
       <div class="modal-actions" style="margin-top:12px;">
@@ -3883,6 +3912,82 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
   });
 
   var currentTaskId = null;
+  var currentTaskChecklist = [];
+  var taskChecklistSearchT = null;
+
+  function parseStationsList(text) {
+    var raw = (text || '').replace(/\r/g, '\n');
+    var parts = raw.split('\n').map(function(s){ return (s || '').trim(); }).filter(Boolean);
+    // поддержка "АЗС 1, АЗС 2" в одной строке
+    var expanded = [];
+    parts.forEach(function(line){
+      if (line.indexOf(',') !== -1 || line.indexOf(';') !== -1) {
+        line.split(/[;,]/).forEach(function(p){
+          var v = (p || '').trim();
+          if (v) expanded.push(v);
+        });
+      } else expanded.push(line);
+    });
+    var seen = {};
+    var out = [];
+    expanded.forEach(function(v){
+      var k = v.toLowerCase();
+      if (seen[k]) return;
+      seen[k] = 1;
+      out.push(v);
+    });
+    return out;
+  }
+
+  function renderTaskChecklist() {
+    var listEl = document.getElementById('task-checklist-list');
+    var progEl = document.getElementById('task-checklist-progress');
+    if (!listEl || !progEl) return;
+    var q = (document.getElementById('task-checklist-search') && document.getElementById('task-checklist-search').value) ? document.getElementById('task-checklist-search').value.trim().toLowerCase() : '';
+    var hideDone = document.getElementById('task-checklist-hide-done') && document.getElementById('task-checklist-hide-done').checked;
+    var total = currentTaskChecklist.length;
+    var done = currentTaskChecklist.filter(function(x){ return !!x.is_done; }).length;
+    progEl.textContent = done + '/' + total;
+
+    var filtered = currentTaskChecklist.filter(function(x){
+      if (hideDone && x.is_done) return false;
+      if (!q) return true;
+      return (x.station_name || '').toLowerCase().indexOf(q) !== -1;
+    });
+    if (!filtered.length) {
+      listEl.innerHTML = '<div class="chat-message-time">Нет АЗС по фильтру</div>';
+      return;
+    }
+    listEl.innerHTML = filtered.map(function(it){
+      var meta = '';
+      if (it.is_done) {
+        var who = it.done_by && it.done_by.full_name ? escapeHtml(it.done_by.full_name) : '';
+        var when = it.done_at ? formatDate(it.done_at) : '';
+        meta = '<div class="checklist-meta">' + (who ? ('Отметил: <strong>'+who+'</strong>') : 'Выполнено') + (when ? (' • ' + escapeHtml(when)) : '') + '</div>';
+      }
+      return '' +
+        '<div class="modal-comment '+(it.is_done?'checklist-done':'')+'" data-check-id="'+it.id+'">' +
+          '<div class="checklist-item">' +
+            '<input type="checkbox" class="task-check-toggle" '+(it.is_done?'checked':'')+' />' +
+            '<div style="min-width:0;flex:1;">' +
+              '<div class="checklist-title">'+escapeHtml(it.station_name || '')+'</div>' +
+              meta +
+            '</div>' +
+            '<button type="button" class="btn-secondary task-check-del" style="padding:8px 10px;">Удалить</button>' +
+          '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  async function loadTaskChecklist(taskId) {
+    try {
+      currentTaskChecklist = await api('/tasks/'+taskId+'/checklist');
+    } catch(_) {
+      currentTaskChecklist = [];
+    }
+    renderTaskChecklist();
+  }
+
   async function openTask(id) {
     currentTaskId = id;
     var modal = document.getElementById('task-modal');
@@ -3911,6 +4016,11 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
           return '<div class="modal-comment"><strong>'+escapeHtml(h.user&&h.user.full_name||'')+'</strong>: '+fn+' — ' + (ov ? escapeHtml(ov) : '—') + ' → ' + (nv ? escapeHtml(nv) : '—') + ' <span class="chat-message-time">'+formatDate(h.created_at)+'</span></div>';
         }).join('') : '<div class="chat-message-time">Нет изменений</div>';
       } catch(_) { taskHistoryEl.innerHTML = '<div class="chat-message-time">Нет изменений</div>'; }
+      // чек-лист АЗС
+      if (document.getElementById('task-checklist-bulk')) document.getElementById('task-checklist-bulk').value = '';
+      if (document.getElementById('task-checklist-search')) document.getElementById('task-checklist-search').value = '';
+      if (document.getElementById('task-checklist-hide-done')) document.getElementById('task-checklist-hide-done').checked = false;
+      await loadTaskChecklist(id);
       modal.classList.remove('hidden');
     } catch (err) { alert(err.message); }
   }
@@ -3923,6 +4033,67 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       api('/tasks/'+currentTaskId, { method: 'PATCH', body: JSON.stringify({ department_id: department_id }) })
         .then(function(){ loadTasks(); })
         .catch(function(e){ alert(e.message); });
+    });
+  }
+
+  // чек-лист: поиск/фильтры/добавление/галочки/удаление (делегирование по контейнеру)
+  if (document.getElementById('task-checklist-search')) {
+    document.getElementById('task-checklist-search').addEventListener('input', function(){
+      clearTimeout(taskChecklistSearchT);
+      taskChecklistSearchT = setTimeout(renderTaskChecklist, 150);
+    });
+  }
+  if (document.getElementById('task-checklist-hide-done')) {
+    document.getElementById('task-checklist-hide-done').addEventListener('change', renderTaskChecklist);
+  }
+  if (document.getElementById('task-checklist-clear')) {
+    document.getElementById('task-checklist-clear').addEventListener('click', function(){
+      if (document.getElementById('task-checklist-bulk')) document.getElementById('task-checklist-bulk').value = '';
+    });
+  }
+  if (document.getElementById('task-checklist-add')) {
+    document.getElementById('task-checklist-add').addEventListener('click', async function(){
+      if (!currentTaskId) return;
+      var ta = document.getElementById('task-checklist-bulk');
+      var list = parseStationsList(ta ? ta.value : '');
+      if (!list.length) { alert('Вставьте список АЗС'); return; }
+      try {
+        var added = await api('/tasks/'+currentTaskId+'/checklist/bulk', { method: 'POST', body: JSON.stringify({ stations: list }) });
+        // перезагружаем, чтобы получить done_by и консистентный порядок
+        await loadTaskChecklist(currentTaskId);
+        if (ta) ta.value = '';
+        playSound('notification');
+      } catch (e) { alert(e.message); }
+    });
+  }
+  if (document.getElementById('task-checklist-list')) {
+    document.getElementById('task-checklist-list').addEventListener('click', async function(e){
+      if (!currentTaskId) return;
+      var target = e.target;
+      var wrap = target && target.closest ? target.closest('[data-check-id]') : null;
+      if (!wrap) return;
+      var itemId = parseInt(wrap.getAttribute('data-check-id') || '0', 10);
+      if (!itemId) return;
+
+      if (target && target.classList && target.classList.contains('task-check-del')) {
+        if (!confirm('Удалить АЗС из чек-листа?')) return;
+        try {
+          await api('/tasks/'+currentTaskId+'/checklist/'+itemId, { method: 'DELETE' });
+          currentTaskChecklist = currentTaskChecklist.filter(function(x){ return x.id !== itemId; });
+          renderTaskChecklist();
+        } catch (e2) { alert(e2.message); }
+        return;
+      }
+
+      if (target && target.classList && target.classList.contains('task-check-toggle')) {
+        var isDone = !!target.checked;
+        try {
+          var updated = await api('/tasks/'+currentTaskId+'/checklist/'+itemId, { method: 'PATCH', body: JSON.stringify({ is_done: isDone }) });
+          currentTaskChecklist = currentTaskChecklist.map(function(x){ return x.id === itemId ? updated : x; });
+          renderTaskChecklist();
+        } catch (e3) { alert(e3.message); }
+        return;
+      }
     });
   }
   var tasksSearchEl = document.getElementById('tasks-search');

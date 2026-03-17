@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -6,8 +6,17 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
-from app.models import Task, TaskHistory, User
-from app.schemas import TaskCreate, TaskResponse, TaskUpdate, TaskHistoryResponse
+from app.models import Task, TaskChecklistItem, TaskHistory, User
+from app.schemas import (
+    TaskChecklistBulkCreate,
+    TaskChecklistItemCreate,
+    TaskChecklistItemResponse,
+    TaskChecklistItemUpdate,
+    TaskCreate,
+    TaskHistoryResponse,
+    TaskResponse,
+    TaskUpdate,
+)
 
 from .deps import get_current_user
 
@@ -119,3 +128,132 @@ def update_task(
     db.refresh(task)
     task = db.query(Task).options(joinedload(Task.assignee), joinedload(Task.department)).filter(Task.id == task_id).first()
     return task
+
+
+@router.get("/{task_id}/checklist", response_model=list[TaskChecklistItemResponse])
+def list_task_checklist(
+    task_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
+    items = (
+        db.query(TaskChecklistItem)
+        .options(joinedload(TaskChecklistItem.done_by))
+        .filter(TaskChecklistItem.task_id == task_id)
+        .order_by(TaskChecklistItem.id.asc())
+        .all()
+    )
+    return items
+
+
+@router.post("/{task_id}/checklist", response_model=TaskChecklistItemResponse, status_code=status.HTTP_201_CREATED)
+def create_task_checklist_item(
+    task_id: int,
+    data: TaskChecklistItemCreate,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
+    name = (data.station_name or "").strip()
+    if not name:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Название АЗС не заполнено")
+    item = TaskChecklistItem(task_id=task_id, station_name=name, is_done=False)
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    item = (
+        db.query(TaskChecklistItem)
+        .options(joinedload(TaskChecklistItem.done_by))
+        .filter(TaskChecklistItem.id == item.id)
+        .first()
+    )
+    return item
+
+
+@router.post("/{task_id}/checklist/bulk", response_model=list[TaskChecklistItemResponse], status_code=status.HTTP_201_CREATED)
+def bulk_create_task_checklist(
+    task_id: int,
+    data: TaskChecklistBulkCreate,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
+    raw = data.stations or []
+    names: list[str] = []
+    seen: set[str] = set()
+    for s in raw:
+        n = (s or "").strip()
+        if not n:
+            continue
+        key = n.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        names.append(n)
+    if not names:
+        return []
+    if len(names) > 1000:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Слишком много АЗС за раз (макс. 1000)")
+    objs = [TaskChecklistItem(task_id=task_id, station_name=n, is_done=False) for n in names]
+    db.add_all(objs)
+    db.commit()
+    ids = [o.id for o in objs if o.id]
+    items = (
+        db.query(TaskChecklistItem)
+        .options(joinedload(TaskChecklistItem.done_by))
+        .filter(TaskChecklistItem.id.in_(ids))
+        .order_by(TaskChecklistItem.id.asc())
+        .all()
+    )
+    return items
+
+
+@router.patch("/{task_id}/checklist/{item_id}", response_model=TaskChecklistItemResponse)
+def update_task_checklist_item(
+    task_id: int,
+    item_id: int,
+    data: TaskChecklistItemUpdate,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    item = db.query(TaskChecklistItem).filter(TaskChecklistItem.id == item_id, TaskChecklistItem.task_id == task_id).first()
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пункт чек-листа не найден")
+    item.is_done = bool(data.is_done)
+    if item.is_done:
+        item.done_by_id = user.id
+        item.done_at = datetime.utcnow()
+    else:
+        item.done_by_id = None
+        item.done_at = None
+    db.commit()
+    db.refresh(item)
+    item = (
+        db.query(TaskChecklistItem)
+        .options(joinedload(TaskChecklistItem.done_by))
+        .filter(TaskChecklistItem.id == item.id)
+        .first()
+    )
+    return item
+
+
+@router.delete("/{task_id}/checklist/{item_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_task_checklist_item(
+    task_id: int,
+    item_id: int,
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    item = db.query(TaskChecklistItem).filter(TaskChecklistItem.id == item_id, TaskChecklistItem.task_id == task_id).first()
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Пункт чек-листа не найден")
+    db.delete(item)
+    db.commit()
+    return None
