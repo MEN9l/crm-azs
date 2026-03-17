@@ -616,6 +616,11 @@
       transition: border-color var(--transition), box-shadow var(--transition);
     }
     .kanban-card:hover { border-color: var(--accent); box-shadow: 0 2px 12px var(--accent-soft); }
+    .kanban-card.is-overdue { border-color: rgba(244, 63, 94, 0.45); background: rgba(244, 63, 94, 0.10); }
+    .kanban-card.dragging { opacity: 0.65; transform: rotate(-0.2deg); }
+    .kanban-column.drop-target { outline: 2px dashed rgba(14,165,233,0.45); outline-offset: 6px; }
+    .kanban-column .kanban-count { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+    .kanban-column h3 { display:flex; align-items:center; justify-content:space-between; gap:10px; }
 
     .chat-layout {
       display: grid;
@@ -1254,6 +1259,8 @@
               <h2 style="margin:0;">Задачи</h2>
               <input type="text" id="tasks-search" data-tooltip="Поиск по названию или описанию задачи" placeholder="Поиск по названию или описанию..." style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);width:220px;max-width:100%;" />
               <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-size:13px;cursor:pointer;" data-tooltip="Только задачи со сроком на эту неделю"><input type="checkbox" id="tasks-due-week" /> На эту неделю</label>
+              <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-size:13px;cursor:pointer;" data-tooltip="Показывать только задачи, назначенные вам"><input type="checkbox" id="tasks-only-mine" /> Только мои</label>
+              <button type="button" class="btn-primary" id="task-create-btn">Создать задачу</button>
             </div>
             <div id="tasks-loading" style="display:none;"></div>
             <div class="kanban" id="kanban-root" style="display:none"></div>
@@ -1656,6 +1663,59 @@
       <div class="modal-actions" style="margin-top:12px;">
         <button type="button" class="btn-secondary" id="task-modal-close">Закрыть</button>
       </div>
+    </div>
+  </div>
+
+  <div id="task-create-modal" class="modal-overlay hidden">
+    <div class="modal-box modal-compact">
+      <div class="modal-header-row">
+        <div class="modal-title-block">
+          <h3>Новая задача</h3>
+          <div class="modal-subtitle">Минимум полей — остальное можно изменить позже.</div>
+        </div>
+        <button type="button" class="modal-close-x" id="task-create-close-x" title="Закрыть">×</button>
+      </div>
+      <form id="task-create-form">
+        <div class="fields-grid">
+          <div class="field" style="grid-column:1/-1;">
+            <label>Название</label>
+            <input type="text" id="task-create-title" required placeholder="Например: Проверить кассу №2" class="inline" />
+          </div>
+          <div class="field" style="grid-column:1/-1;">
+            <label>Описание (необязательно)</label>
+            <textarea id="task-create-description" rows="3" placeholder="Коротко: что сделать и какой результат ожидаем…" class="inline"></textarea>
+          </div>
+          <div class="field">
+            <label>Статус</label>
+            <select id="task-create-status" class="inline">
+              <option value="backlog" selected>Backlog</option>
+              <option value="in_progress">В работе</option>
+              <option value="review">На проверке</option>
+              <option value="done">Выполнена</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Приоритет</label>
+            <select id="task-create-priority" class="inline">
+              <option value="low">Низкий</option>
+              <option value="normal" selected>Обычный</option>
+              <option value="high">Высокий</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Срок (необязательно)</label>
+            <input type="date" id="task-create-due" class="inline" />
+          </div>
+          <div class="field">
+            <label>Исполнитель (необязательно)</label>
+            <select id="task-create-assignee" class="inline"></select>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="submit" class="btn-primary">Создать</button>
+          <button type="button" class="btn-secondary" id="task-create-cancel">Отмена</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -3881,12 +3941,28 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
   var tasksSearchEl = document.getElementById('tasks-search');
   if (tasksSearchEl) { var tasksSearchT; tasksSearchEl.addEventListener('input', function(){ clearTimeout(tasksSearchT); tasksSearchT = setTimeout(loadTasks, 350); }); tasksSearchEl.addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); loadTasks(); } }); }
   if (document.getElementById('tasks-due-week')) document.getElementById('tasks-due-week').addEventListener('change', loadTasks);
+  if (document.getElementById('tasks-only-mine')) document.getElementById('tasks-only-mine').addEventListener('change', loadTasks);
+
+  function taskStatusLabel(v) {
+    var map = { backlog: 'Backlog', in_progress: 'В работе', review: 'На проверке', done: 'Выполнена' };
+    return map[v] || v || '—';
+  }
+
+  function renderTaskCard(t) {
+    var overdue = isOverdue(t.due_date, t.status);
+    var pr = t.priority || 'normal';
+    var prBadge = '<span class="badge badge-priority-' + pr + '">' + priorityLabel(pr) + '</span>';
+    var due = t.due_date ? (' · ' + formatDateOnly(t.due_date)) : '';
+    var meta = '<div class="kanban-meta">' + prBadge + '<span style="margin-left:8px;color:var(--text-muted);font-size:12px;">' + escapeHtml(due ? due.slice(3) : '') + '</span></div>';
+    return '<div class="kanban-title">'+escapeHtml(t.title)+'</div>' + meta;
+  }
 
   async function loadTasks() {
     const root = document.getElementById('kanban-root');
     const loading = document.getElementById('tasks-loading');
     var searchQ = (document.getElementById('tasks-search') && document.getElementById('tasks-search').value) ? document.getElementById('tasks-search').value.trim() : '';
     var dueWeek = document.getElementById('tasks-due-week') && document.getElementById('tasks-due-week').checked;
+    var onlyMine = document.getElementById('tasks-only-mine') && document.getElementById('tasks-only-mine').checked;
     var params = [];
     if (searchQ) params.push('q=' + encodeURIComponent(searchQ));
     if (dueWeek) params.push('due_week=true');
@@ -3900,17 +3976,55 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       loading.style.display = 'none';
       root.style.display = 'grid';
       const statuses = ['backlog','in_progress','review','done'];
-      root.innerHTML = statuses.map(st => '<div class="kanban-column"><h3>'+st+'</h3></div>').join('');
+      var me = getUser();
+      var filtered = list;
+      if (onlyMine && me) filtered = filtered.filter(function(t){ return t.assignee_id === me.id; });
+      var counts = {};
+      statuses.forEach(function(s){ counts[s] = filtered.filter(function(t){ return t.status === s; }).length; });
+      root.innerHTML = statuses.map(function(st){
+        return '<div class="kanban-column" data-status="'+st+'"><h3><span>'+escapeHtml(taskStatusLabel(st))+'</span><span class="kanban-count">'+counts[st]+'</span></h3></div>';
+      }).join('');
       statuses.forEach((st, i) => {
         const col = root.children[i];
-        list.filter(t => t.status === st).forEach(t => {
+        filtered.filter(t => t.status === st).forEach(t => {
           const card = document.createElement('div');
           card.className = 'kanban-card';
           card.style.cursor = 'pointer';
           card.setAttribute('data-id', t.id);
-          card.innerHTML = '<div class="kanban-title">'+escapeHtml(t.title)+'</div><div class="kanban-meta">'+t.priority+(t.due_date ? ' · '+formatDateOnly(t.due_date) : '')+'</div>';
+          card.innerHTML = renderTaskCard(t);
+          if (isOverdue(t.due_date, t.status)) card.classList.add('is-overdue');
+          card.setAttribute('draggable', 'true');
           card.addEventListener('click', function(){ openTask(parseInt(card.getAttribute('data-id'),10)); });
+          card.addEventListener('dragstart', function(ev){
+            card.classList.add('dragging');
+            try { ev.dataTransfer.setData('text/plain', JSON.stringify({ id: t.id, from: st })); } catch(_) { ev.dataTransfer.setData('text/plain', String(t.id)); }
+            ev.dataTransfer.effectAllowed = 'move';
+          });
+          card.addEventListener('dragend', function(){
+            card.classList.remove('dragging');
+            document.querySelectorAll('.kanban-column.drop-target').forEach(function(c){ c.classList.remove('drop-target'); });
+          });
           col.appendChild(card);
+        });
+      });
+
+      // drop targets
+      root.querySelectorAll('.kanban-column[data-status]').forEach(function(col){
+        col.addEventListener('dragover', function(e){ e.preventDefault(); col.classList.add('drop-target'); });
+        col.addEventListener('dragleave', function(){ col.classList.remove('drop-target'); });
+        col.addEventListener('drop', function(e){
+          e.preventDefault();
+          col.classList.remove('drop-target');
+          var st = col.getAttribute('data-status');
+          var raw = '';
+          try { raw = e.dataTransfer.getData('text/plain') || ''; } catch(_) {}
+          var payload = null;
+          try { payload = JSON.parse(raw); } catch(_) {}
+          var taskId = payload && payload.id ? payload.id : parseInt(raw, 10);
+          if (!taskId || !st) return;
+          api('/tasks/'+taskId, { method:'PATCH', body: JSON.stringify({ status: st }) })
+            .then(function(){ loadTasks(); })
+            .catch(function(err){ alert(err.message); });
         });
       });
     } catch (err) {
@@ -3919,6 +4033,55 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       loading.textContent = err.message;
       loading.style.display = 'block';
     }
+  }
+
+  // Create task modal
+  function closeTaskCreateModal() { document.getElementById('task-create-modal').classList.add('hidden'); }
+  if (document.getElementById('task-create-close-x')) document.getElementById('task-create-close-x').addEventListener('click', closeTaskCreateModal);
+  if (document.getElementById('task-create-cancel')) document.getElementById('task-create-cancel').addEventListener('click', closeTaskCreateModal);
+  if (document.getElementById('task-create-btn')) {
+    document.getElementById('task-create-btn').addEventListener('click', function(){
+      api('/users').then(function(users){
+        var sel = document.getElementById('task-create-assignee');
+        var me = getUser();
+        var canAssign = me && (me.role === 'admin' || me.role === 'chief');
+        if (!sel) return;
+        if (!canAssign) {
+          sel.innerHTML = '<option value="">— недоступно</option>';
+          sel.disabled = true;
+        } else {
+          sel.disabled = false;
+          sel.innerHTML = '<option value="">— не назначен</option>' + users.map(function(u){ return '<option value="'+u.id+'">'+escapeHtml(u.full_name)+'</option>'; }).join('');
+        }
+        document.getElementById('task-create-modal').classList.remove('hidden');
+        document.getElementById('task-create-title').focus();
+      }).catch(function(e){ alert(e.message); });
+    });
+  }
+  if (document.getElementById('task-create-form')) {
+    document.getElementById('task-create-form').addEventListener('submit', function(e){
+      e.preventDefault();
+      var title = document.getElementById('task-create-title').value.trim();
+      if (!title) return;
+      var payload = {
+        title: title,
+        description: (document.getElementById('task-create-description').value || '').trim() || null,
+        status: document.getElementById('task-create-status').value,
+        priority: document.getElementById('task-create-priority').value,
+        due_date: document.getElementById('task-create-due').value || null
+      };
+      var as = document.getElementById('task-create-assignee');
+      if (as && as.value) payload.assignee_id = parseInt(as.value, 10);
+      api('/tasks', { method:'POST', body: JSON.stringify(payload) }).then(function(){
+        closeTaskCreateModal();
+        document.getElementById('task-create-title').value = '';
+        document.getElementById('task-create-description').value = '';
+        document.getElementById('task-create-due').value = '';
+        if (as) as.value = '';
+        loadTasks();
+        playSound('notification');
+      }).catch(function(err){ alert(err.message); });
+    });
   }
 
   let currentChatId = 1;

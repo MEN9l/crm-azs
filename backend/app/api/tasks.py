@@ -56,8 +56,10 @@ def create_task(
     task = Task(
         title=data.title,
         description=data.description,
+        status=getattr(data, "status", "backlog") or "backlog",
         priority=data.priority,
         ticket_id=data.ticket_id,
+        assignee_id=(data.assignee_id if (getattr(data, "assignee_id", None) and user.role in ("admin", "chief")) else None),
         due_date=data.due_date,
     )
     db.add(task)

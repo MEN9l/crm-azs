@@ -20,6 +20,8 @@ class TaskCreate(BaseModel):
     description: str | None = None
     priority: str = "normal"
     ticket_id: int | None = None
+    assignee_id: int | None = None
+    status: str = "backlog"
     due_date: date | None = None
 
 
