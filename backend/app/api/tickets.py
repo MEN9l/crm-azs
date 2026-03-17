@@ -158,9 +158,12 @@ def create_ticket(
         type=data.type,
         station_id=data.station_id,
         creator_id=user.id,
+        department_id=getattr(data, "department_id", None),
         due_date=data.due_date,
         tags=data.tags,
     )
+    if getattr(data, "assignee_id", None) and user.role in ("admin", "chief"):
+        ticket.assignee_id = data.assignee_id
     db.add(ticket)
     db.commit()
     db.refresh(ticket)
@@ -200,6 +203,9 @@ def update_ticket(
     updates = data.model_dump(exclude_unset=True)
     if "assignee_id" in updates and user.role not in ("admin", "chief"):
         del updates["assignee_id"]
+    if "department_id" in updates and user.role not in ("admin", "chief"):
+        # отдел можно выбрать при постановке, но менять маршрут заявки — только руководителям
+        del updates["department_id"]
     history_fields = ("status", "assignee_id", "due_date")
     old_vals = {k: getattr(ticket, k) for k in history_fields if k in updates}
     for k, v in updates.items():

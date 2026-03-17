@@ -15,6 +15,7 @@ class TicketBase(BaseModel):
     tags: str | None = None
     station_id: int | None = None
     assignee_id: int | None = None
+    department_id: int | None = None
     due_date: date | None = None
 
 
@@ -24,6 +25,8 @@ class TicketCreate(BaseModel):
     priority: str = "normal"
     type: str = "general"
     station_id: int | None = None
+    department_id: int | None = None
+    assignee_id: int | None = None
     due_date: date | None = None
     tags: str | None = None
 
@@ -34,6 +37,7 @@ class TicketUpdate(BaseModel):
     status: str | None = None
     priority: str | None = None
     assignee_id: int | None = None
+    department_id: int | None = None
     due_date: date | None = None
     tags: str | None = None
 

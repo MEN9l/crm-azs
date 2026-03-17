@@ -11,6 +11,7 @@ class UserBase(BaseModel):
     is_office: bool = False
     position: str | None = None
     department: str | None = None
+    department_id: int | None = None
 
 
 class UserCreate(UserBase):
@@ -25,6 +26,7 @@ class UserUpdate(BaseModel):
     is_office: bool | None = None
     position: str | None = None
     department: str | None = None
+    department_id: int | None = None
 
 
 class ProfileUpdate(BaseModel):
@@ -33,6 +35,7 @@ class ProfileUpdate(BaseModel):
     phone: str | None = None
     position: str | None = None
     department: str | None = None
+    department_id: int | None = None
 
 
 class UserResponse(UserBase):
@@ -54,6 +57,7 @@ class UserBrief(BaseModel):
     is_office: bool = False
     position: str | None = None
     department: str | None = None
+    department_id: int | None = None
 
     class Config:
         from_attributes = True

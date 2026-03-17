@@ -28,8 +28,11 @@ class User(Base):
     is_office: Mapped[bool] = mapped_column(Boolean, default=False)  # сотрудник офиса (видит общий чат, может быть добавлен в чаты АЗС)
     position: Mapped[str | None] = mapped_column(String(255), nullable=True)   # должность
     department: Mapped[str | None] = mapped_column(String(255), nullable=True)  # подразделение
+    department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id"), nullable=True)
     avatar: Mapped[str | None] = mapped_column(String(512), nullable=True)     # путь к аватарке, напр. avatars/1.jpg
     last_seen_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # для отображения «кто в сети»
+
+    department_ref = relationship("Department")
 
     stations: Mapped[list["Station"]] = relationship(
         "Station", secondary=user_station_table, back_populates="users"

@@ -154,6 +154,21 @@
     body.theme-light .empty-state { background: rgba(2, 132, 199, 0.04); }
     .empty-state-title { font-weight: 700; margin: 0 0 6px; }
     .empty-state-text { margin: 0; color: var(--text-muted); font-size: 14px; }
+    .dept-layout { display: grid; grid-template-columns: 360px 1fr; gap: 14px; margin-top: 14px; }
+    @media (max-width: 900px) { .dept-layout { grid-template-columns: 1fr; } }
+    .dept-card { border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 14px; background: rgba(0,0,0,0.06); }
+    body.theme-light .dept-card { background: rgba(2, 132, 199, 0.03); }
+    .dept-card-title { font-weight: 700; font-size: 13px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .dept-tree { margin-top: 10px; max-height: 58vh; overflow: auto; padding-right: 4px; }
+    .dept-node { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; cursor: pointer; transition: background var(--transition); }
+    .dept-node:hover { background: var(--border-subtle); }
+    .dept-node.active { background: var(--accent-soft); color: var(--accent); }
+    .dept-toggle { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--border-subtle); background: var(--input-bg); color: var(--text-muted); cursor: pointer; flex-shrink: 0; }
+    .dept-toggle:hover { border-color: var(--accent); color: var(--accent); }
+    .dept-name { font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dept-count { margin-left: auto; font-size: 12px; color: var(--text-muted); }
+    .dept-form label { display:block; font-size: 13px; font-weight: 500; color: var(--text-muted); margin: 10px 0 6px; }
+    .dept-form input, .dept-form select { width: 100%; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
     .badge {
       display: inline-flex;
       align-items: center;
@@ -714,6 +729,7 @@
         <div class="sidebar-link" data-view="tickets">Заявки</div>
         <div class="sidebar-link" data-view="tasks">Задачи</div>
         <div class="sidebar-link" data-view="chat">Чат</div>
+        <div class="sidebar-link" data-view="departments" id="sidebar-departments-link" style="display:none;">Отделы</div>
         <div class="sidebar-link" data-view="users" id="sidebar-users-link" style="display:none;">Пользователи</div>
       </nav>
     </aside>
@@ -924,6 +940,83 @@
             </table>
           </div>
         </div>
+        <div id="view-departments" class="view" style="display:none">
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+              <h2 style="margin:0;">Отделы</h2>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <button type="button" class="btn-secondary" id="departments-refresh">Обновить</button>
+              </div>
+            </div>
+            <div id="departments-msg" class="msg" style="display:none;"></div>
+            <div class="dept-layout">
+              <div class="dept-left">
+                <div class="dept-card">
+                  <div class="dept-card-title">Дерево отделов</div>
+                  <div id="departments-tree" class="dept-tree"></div>
+                </div>
+                <div class="dept-card" style="margin-top:12px;">
+                  <div class="dept-card-title">Создать отдел</div>
+                  <div class="dept-form">
+                    <label>Название</label>
+                    <input type="text" id="dept-new-name" placeholder="Например: ИТ, Бухгалтерия…" />
+                    <label>Родитель (необязательно)</label>
+                    <select id="dept-new-parent"></select>
+                    <div class="modal-actions" style="margin-top:10px;">
+                      <button type="button" class="btn-primary" id="dept-new-create">Создать</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="dept-right">
+                <div class="dept-card">
+                  <div class="dept-card-title">Выбранный отдел</div>
+                  <div id="dept-selected-empty" class="empty-state" style="margin-top:10px;">
+                    <p class="empty-state-title">Отдел не выбран</p>
+                    <p class="empty-state-text">Выберите отдел в дереве слева, чтобы управлять им и назначать сотрудников.</p>
+                  </div>
+                  <div id="dept-selected" style="display:none;">
+                    <div class="dept-form">
+                      <div class="fields-grid">
+                        <div class="field" style="grid-column:1/-1;">
+                          <label>Название</label>
+                          <input type="text" id="dept-edit-name" />
+                        </div>
+                        <div class="field" style="grid-column:1/-1;">
+                          <label>Родитель</label>
+                          <select id="dept-edit-parent"></select>
+                        </div>
+                      </div>
+                      <div class="mini-actions" style="margin-top:10px;">
+                        <button type="button" class="btn-primary" id="dept-edit-save">Сохранить</button>
+                        <button type="button" class="btn-danger" id="dept-edit-delete">Удалить</button>
+                      </div>
+                    </div>
+
+                    <div class="section" id="dept-section-users">
+                      <div class="section-title" data-section-toggle="#dept-section-users">
+                        <h4>Сотрудники отдела</h4>
+                        <span class="section-toggle">скрыть</span>
+                      </div>
+                      <div class="section-body">
+                        <div class="attachments-row" style="margin-bottom:10px;">
+                          <select id="dept-add-user" style="min-width:260px;"></select>
+                          <button type="button" class="btn-secondary" id="dept-add-user-btn">Назначить</button>
+                        </div>
+                        <div class="table-wrap">
+                          <table class="table" id="dept-users-table">
+                            <thead><tr><th>Сотрудник</th><th>Email</th><th>Роль</th><th></th></tr></thead>
+                            <tbody id="dept-users-tbody"></tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
     </div>
   </div>
@@ -971,8 +1064,16 @@
             <select id="ticket-create-station" class="inline"></select>
           </div>
           <div class="field">
+            <label>Отдел (необязательно)</label>
+            <select id="ticket-create-department" class="inline"></select>
+          </div>
+          <div class="field">
             <label>Срок (необязательно)</label>
             <input type="date" id="ticket-create-due" class="inline" />
+          </div>
+          <div class="field">
+            <label>Сотрудник (необязательно)</label>
+            <select id="ticket-create-assignee" class="inline"></select>
           </div>
           <div class="field" style="grid-column:1/-1;">
             <label>Теги (необязательно)</label>
@@ -1220,6 +1321,8 @@
     }
     var usersLink = document.getElementById('sidebar-users-link');
     if (usersLink) usersLink.style.display = (u && (u.role === 'admin' || u.role === 'chief')) ? '' : 'none';
+    var depsLink = document.getElementById('sidebar-departments-link');
+    if (depsLink) depsLink.style.display = (u && (u.role === 'admin' || u.role === 'chief')) ? '' : 'none';
     if (typeof window !== 'undefined' && window.Notification && window.Notification.permission === 'default') {
       window.Notification.requestPermission();
     }
@@ -1448,7 +1551,7 @@
   });
 
   function switchView(name) {
-    ['dashboard','tickets','tasks','chat','users'].forEach(v => {
+    ['dashboard','tickets','tasks','chat','departments','users'].forEach(v => {
       const el = document.getElementById('view-' + v);
       if (el) {
         el.style.display = v === name ? 'block' : 'none';
@@ -1462,15 +1565,239 @@
     var showUsers = u && (u.role === 'admin' || u.role === 'chief');
     var usersLink = document.querySelector('.sidebar-link[data-view="users"]');
     if (usersLink) usersLink.style.display = showUsers ? '' : 'none';
-    const titles = { dashboard: 'Главная', tickets: 'Заявки', tasks: 'Задачи', chat: 'Чат', profile: 'Профиль', users: 'Пользователи' };
+    var depsLink = document.querySelector('.sidebar-link[data-view="departments"]');
+    if (depsLink) depsLink.style.display = showUsers ? '' : 'none';
+    const titles = { dashboard: 'Главная', tickets: 'Заявки', tasks: 'Задачи', chat: 'Чат', profile: 'Профиль', departments: 'Отделы', users: 'Пользователи' };
     document.getElementById('page-title').textContent = titles[name] || name;
     if (name === 'tickets') loadTickets();
     if (name === 'tasks') loadTasks();
     if (name === 'chat') loadChat();
+    if (name === 'departments') loadDepartmentsPage();
     if (name === 'dashboard') { loadOnline(); loadAnnouncements(); startOnlineRefresh(); }
     if (name === 'profile') loadProfile();
     if (name === 'users') loadUsersAdmin();
     loadNotificationCount();
+  }
+
+  let departmentsState = { selectedId: null, expanded: {}, deps: [], users: [] };
+
+  function showDeptMsg(type, text) {
+    var el = document.getElementById('departments-msg');
+    if (!el) return;
+    el.className = 'msg ' + (type === 'err' ? 'err' : 'ok');
+    el.textContent = text;
+    el.style.display = 'block';
+    setTimeout(function(){ try { el.style.display = 'none'; } catch(_){} }, 3500);
+  }
+
+  function buildDeptTree(deps) {
+    var byParent = {};
+    deps.forEach(function(d){
+      var pid = (d.parent_id == null) ? 'root' : String(d.parent_id);
+      (byParent[pid] = byParent[pid] || []).push(d);
+    });
+    Object.keys(byParent).forEach(function(k){
+      byParent[k].sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||'')); });
+    });
+    function walk(pid, depth, out) {
+      var list = byParent[pid] || [];
+      list.forEach(function(d){
+        out.push({ dep: d, depth: depth });
+        if (departmentsState.expanded[d.id]) walk(String(d.id), depth + 1, out);
+      });
+    }
+    var flat = [];
+    walk('root', 0, flat);
+    return { byParent: byParent, flat: flat };
+  }
+
+  function renderDeptParentOptions(selectEl, deps, allowEmpty, excludeId) {
+    if (!selectEl) return;
+    var opts = [];
+    if (allowEmpty) opts.push('<option value="">— нет</option>');
+    deps.forEach(function(d){
+      if (excludeId && d.id === excludeId) return;
+      opts.push('<option value="'+d.id+'">'+escapeHtml(d.name)+'</option>');
+    });
+    selectEl.innerHTML = opts.join('');
+  }
+
+  function renderDepartmentsTree() {
+    var root = document.getElementById('departments-tree');
+    if (!root) return;
+    var deps = departmentsState.deps || [];
+    var users = departmentsState.users || [];
+    var tree = buildDeptTree(deps);
+    var byParent = tree.byParent;
+
+    function deptUserCount(depId) {
+      var n = 0;
+      for (var i=0;i<users.length;i++) if (users[i].department_id === depId) n++;
+      return n;
+    }
+
+    root.innerHTML = tree.flat.map(function(row){
+      var d = row.dep;
+      var children = (byParent[String(d.id)] || []).length;
+      var pad = row.depth * 16;
+      var expanded = !!departmentsState.expanded[d.id];
+      var toggle = children ? ('<button type="button" class="dept-toggle" data-toggle="'+d.id+'" title="'+(expanded?'Свернуть':'Развернуть')+'">'+(expanded?'−':'+')+'</button>') : '<span style="display:inline-block;width:18px;"></span>';
+      var active = departmentsState.selectedId === d.id ? ' active' : '';
+      return (
+        '<div class="dept-node'+active+'" data-id="'+d.id+'" style="padding-left:'+(10+pad)+'px;">' +
+          toggle +
+          '<div class="dept-name" title="'+escapeHtml(d.name)+'">'+escapeHtml(d.name)+'</div>' +
+          '<div class="dept-count">'+deptUserCount(d.id)+'</div>' +
+        '</div>'
+      );
+    }).join('') || '<div class="chat-message-time">Нет отделов</div>';
+
+    root.querySelectorAll('[data-toggle]').forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var id = parseInt(btn.getAttribute('data-toggle'), 10);
+        departmentsState.expanded[id] = !departmentsState.expanded[id];
+        renderDepartmentsTree();
+      });
+    });
+    root.querySelectorAll('.dept-node[data-id]').forEach(function(node){
+      node.addEventListener('click', function(){
+        departmentsState.selectedId = parseInt(node.getAttribute('data-id'), 10);
+        renderDepartmentsTree();
+        renderDepartmentDetails();
+      });
+    });
+  }
+
+  function renderDepartmentDetails() {
+    var selId = departmentsState.selectedId;
+    var boxEmpty = document.getElementById('dept-selected-empty');
+    var box = document.getElementById('dept-selected');
+    if (!selId) {
+      if (boxEmpty) boxEmpty.style.display = 'block';
+      if (box) box.style.display = 'none';
+      return;
+    }
+    var dep = (departmentsState.deps || []).find(function(d){ return d.id === selId; });
+    if (!dep) {
+      departmentsState.selectedId = null;
+      renderDepartmentDetails();
+      return;
+    }
+    if (boxEmpty) boxEmpty.style.display = 'none';
+    if (box) box.style.display = 'block';
+
+    var nameEl = document.getElementById('dept-edit-name');
+    if (nameEl) nameEl.value = dep.name || '';
+    var parentEl = document.getElementById('dept-edit-parent');
+    renderDeptParentOptions(parentEl, departmentsState.deps || [], true, dep.id);
+    if (parentEl) parentEl.value = (dep.parent_id == null) ? '' : String(dep.parent_id);
+
+    var tbody = document.getElementById('dept-users-tbody');
+    var users = (departmentsState.users || []).filter(function(u){ return u.department_id === selId; });
+    if (tbody) {
+      tbody.innerHTML = users.map(function(u){
+        return '<tr data-uid="'+u.id+'"><td>'+escapeHtml(u.full_name)+'</td><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(u.role)+'</td><td><button type="button" class="btn-secondary dept-user-remove" data-uid="'+u.id+'">Снять</button></td></tr>';
+      }).join('') || '<tr><td colspan="4" style="color:var(--text-muted);">Нет сотрудников в отделе</td></tr>';
+      tbody.querySelectorAll('.dept-user-remove').forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var uid = parseInt(btn.getAttribute('data-uid'), 10);
+          api('/users/'+uid, { method:'PATCH', body: JSON.stringify({ department_id: null }) })
+            .then(function(){ return loadDepartmentsPage(true); })
+            .catch(function(e){ alert(e.message); });
+        });
+      });
+    }
+
+    var addSel = document.getElementById('dept-add-user');
+    if (addSel) {
+      var candidates = (departmentsState.users || []).filter(function(u){ return u.department_id !== selId; });
+      addSel.innerHTML = '<option value="">— выбрать сотрудника</option>' + candidates.map(function(u){
+        var deptName = '';
+        if (u.department_id) {
+          var d2 = (departmentsState.deps || []).find(function(d){ return d.id === u.department_id; });
+          deptName = d2 ? (' · ' + d2.name) : '';
+        }
+        return '<option value="'+u.id+'">'+escapeHtml(u.full_name + ' ('+u.email+')' + deptName)+'</option>';
+      }).join('');
+    }
+  }
+
+  async function loadDepartmentsPage(silent) {
+    var u = getUser();
+    if (!u || (u.role !== 'admin' && u.role !== 'chief')) {
+      if (!silent) showDeptMsg('err', 'Недостаточно прав');
+      return;
+    }
+    try {
+      var res = await Promise.all([api('/departments'), api('/users')]);
+      departmentsState.deps = res[0] || [];
+      departmentsState.users = res[1] || [];
+      if (!Object.keys(departmentsState.expanded).length) {
+        (departmentsState.deps || []).forEach(function(d){ if (d.parent_id == null) departmentsState.expanded[d.id] = true; });
+      }
+      renderDeptParentOptions(document.getElementById('dept-new-parent'), departmentsState.deps || [], true, null);
+      renderDepartmentsTree();
+      renderDepartmentDetails();
+      if (!silent) showDeptMsg('ok', 'Отделы загружены');
+    } catch (e) {
+      if (!silent) showDeptMsg('err', e.message || 'Ошибка загрузки отделов');
+    }
+  }
+
+  if (document.getElementById('departments-refresh')) {
+    document.getElementById('departments-refresh').addEventListener('click', function(){ loadDepartmentsPage(); });
+  }
+  if (document.getElementById('dept-new-create')) {
+    document.getElementById('dept-new-create').addEventListener('click', function(){
+      var name = (document.getElementById('dept-new-name').value || '').trim();
+      var pid = document.getElementById('dept-new-parent').value;
+      if (!name) { alert('Введите название отдела'); return; }
+      var payload = { name: name };
+      if (pid) payload.parent_id = parseInt(pid, 10);
+      api('/departments', { method:'POST', body: JSON.stringify(payload) }).then(function(){
+        document.getElementById('dept-new-name').value = '';
+        loadDepartmentsPage(true);
+        showDeptMsg('ok', 'Отдел создан');
+      }).catch(function(e){ alert(e.message); });
+    });
+  }
+  if (document.getElementById('dept-edit-save')) {
+    document.getElementById('dept-edit-save').addEventListener('click', function(){
+      var id = departmentsState.selectedId;
+      if (!id) return;
+      var name = (document.getElementById('dept-edit-name').value || '').trim();
+      var pid = document.getElementById('dept-edit-parent').value;
+      if (!name) { alert('Введите название отдела'); return; }
+      var payload = { name: name, parent_id: pid ? parseInt(pid, 10) : null };
+      api('/departments/'+id, { method:'PATCH', body: JSON.stringify(payload) }).then(function(){
+        loadDepartmentsPage(true);
+        showDeptMsg('ok', 'Отдел сохранён');
+      }).catch(function(e){ alert(e.message); });
+    });
+  }
+  if (document.getElementById('dept-edit-delete')) {
+    document.getElementById('dept-edit-delete').addEventListener('click', function(){
+      var id = departmentsState.selectedId;
+      if (!id) return;
+      if (!confirm('Удалить отдел? Он не должен иметь сотрудников/заявок/дочерних отделов.')) return;
+      api('/departments/'+id, { method:'DELETE' }).then(function(){
+        departmentsState.selectedId = null;
+        loadDepartmentsPage(true);
+        showDeptMsg('ok', 'Отдел удалён');
+      }).catch(function(e){ alert(e.message); });
+    });
+  }
+  if (document.getElementById('dept-add-user-btn')) {
+    document.getElementById('dept-add-user-btn').addEventListener('click', function(){
+      var id = departmentsState.selectedId;
+      if (!id) return;
+      var uid = document.getElementById('dept-add-user').value;
+      if (!uid) return;
+      api('/users/'+parseInt(uid,10), { method:'PATCH', body: JSON.stringify({ department_id: id }) })
+        .then(function(){ loadDepartmentsPage(true); })
+        .catch(function(e){ alert(e.message); });
+    });
   }
 
   function closeSidebarMobile() {
@@ -2094,9 +2421,30 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
   }
 
   document.getElementById('ticket-create-btn').addEventListener('click', function(){
-    api('/stations').then(function(stations){
+    Promise.all([api('/stations'), api('/departments'), api('/users')]).then(function(res){
+      var stations = res[0] || [];
+      var deps = res[1] || [];
+      var users = res[2] || [];
       var sel = document.getElementById('ticket-create-station');
       sel.innerHTML = '<option value="">— не выбрана</option>' + stations.map(function(s){ return '<option value="'+s.id+'">'+escapeHtml(s.name)+'</option>'; }).join('');
+
+      var depSel = document.getElementById('ticket-create-department');
+      if (depSel) {
+        depSel.innerHTML = '<option value="">— не выбран</option>' + deps.map(function(d){ return '<option value="'+d.id+'">'+escapeHtml(d.name)+'</option>'; }).join('');
+      }
+      window._usersCache = users;
+      var asSel = document.getElementById('ticket-create-assignee');
+      if (asSel) {
+        asSel.innerHTML = '<option value="">— не выбран</option>' + users.map(function(u){ return '<option value="'+u.id+'">'+escapeHtml(u.full_name)+'</option>'; }).join('');
+      }
+      if (depSel && asSel) {
+        depSel.onchange = function(){
+          var did = depSel.value ? parseInt(depSel.value, 10) : null;
+          var list = (window._usersCache || []).slice();
+          if (did) list = list.filter(function(u){ return u.department_id === did; });
+          asSel.innerHTML = '<option value="">— не выбран</option>' + list.map(function(u){ return '<option value="'+u.id+'">'+escapeHtml(u.full_name)+'</option>'; }).join('');
+        };
+      }
       document.getElementById('ticket-create-modal').classList.remove('hidden');
     }).catch(function(e){ alert(e.message); });
   });
@@ -2114,10 +2462,14 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     e.preventDefault();
     var title = document.getElementById('ticket-create-title').value.trim();
     var stationId = document.getElementById('ticket-create-station').value;
+    var depId = document.getElementById('ticket-create-department') ? document.getElementById('ticket-create-department').value : '';
+    var assigneeId = document.getElementById('ticket-create-assignee') ? document.getElementById('ticket-create-assignee').value : '';
     var dueVal = document.getElementById('ticket-create-due').value || null;
     var tagsVal = (document.getElementById('ticket-create-tags') && document.getElementById('ticket-create-tags').value.trim()) || null;
     var payload = { title: title, description: document.getElementById('ticket-create-description').value.trim() || null, priority: document.getElementById('ticket-create-priority').value };
     if (stationId) payload.station_id = parseInt(stationId, 10);
+    if (depId) payload.department_id = parseInt(depId, 10);
+    if (assigneeId) payload.assignee_id = parseInt(assigneeId, 10);
     if (dueVal) payload.due_date = dueVal;
     if (tagsVal) payload.tags = tagsVal;
     api('/tickets', { method: 'POST', body: JSON.stringify(payload) }).then(function(){
@@ -2125,6 +2477,8 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       document.getElementById('ticket-create-title').value = '';
       document.getElementById('ticket-create-description').value = '';
       document.getElementById('ticket-create-due').value = '';
+      if (document.getElementById('ticket-create-department')) document.getElementById('ticket-create-department').value = '';
+      if (document.getElementById('ticket-create-assignee')) document.getElementById('ticket-create-assignee').value = '';
       if (document.getElementById('ticket-create-tags')) document.getElementById('ticket-create-tags').value = '';
       loadTickets();
       playSound('notification');

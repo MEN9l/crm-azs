@@ -21,6 +21,7 @@ class Ticket(Base):
     station_id: Mapped[int | None] = mapped_column(ForeignKey("stations.id"), nullable=True)
     creator_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     assignee_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id"), nullable=True)
 
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
@@ -32,6 +33,7 @@ class Ticket(Base):
     station = relationship("Station")
     creator = relationship("User", foreign_keys=[creator_id])
     assignee = relationship("User", foreign_keys=[assignee_id])
+    department = relationship("Department")
     comments = relationship("TicketComment", back_populates="ticket", order_by="TicketComment.created_at")
 
 

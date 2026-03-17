@@ -10,6 +10,7 @@ from .task_history import TaskHistory  # noqa: F401
 from .chat import Chat, Message  # noqa: F401
 from .notification import Notification  # noqa: F401
 from .attachment import Attachment  # noqa: F401
+from .department import Department  # noqa: F401
 from .announcement import Announcement, AnnouncementComment  # noqa: F401
 from .poll import Poll, PollOption, PollVote  # noqa: F401
 
