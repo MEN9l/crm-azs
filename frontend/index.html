@@ -170,7 +170,15 @@
     .dept-form label { display:block; font-size: 13px; font-weight: 500; color: var(--text-muted); margin: 10px 0 6px; }
     .dept-form input, .dept-form select { width: 100%; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
 
-    .org-chart { margin-top: 10px; overflow: auto; padding: 10px 6px 18px; }
+    .org-chart { margin-top: 10px; overflow: auto; padding: 10px 6px 18px; position: relative; }
+    .org-lines {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      overflow: visible;
+    }
     .org-level { display: flex; justify-content: center; gap: 18px; flex-wrap: nowrap; }
     .org-node-wrap { display: flex; flex-direction: column; align-items: center; min-width: 220px; }
     .org-node {
@@ -1764,6 +1772,81 @@
       return n;
     }
 
+    function ensureSvg() {
+      var svg = rootEl.querySelector('svg.org-lines');
+      if (!svg) {
+        svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('class', 'org-lines');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        rootEl.prepend(svg);
+      }
+      return svg;
+    }
+
+    function updateChartLines() {
+      var svg = ensureSvg();
+      // clear
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      var box = rootEl.getBoundingClientRect();
+      if (!box.width || !box.height) return;
+
+      function pt(el, side) {
+        var r = el.getBoundingClientRect();
+        var x = (r.left - box.left) + r.width / 2;
+        var y = side === 'top' ? (r.top - box.top) : (r.bottom - box.top);
+        return { x: x, y: y };
+      }
+
+      function path(fromEl, toEl) {
+        var a = pt(fromEl, 'bottom');
+        var b = pt(toEl, 'top');
+        var dy = Math.max(30, (b.y - a.y) * 0.45);
+        var d = 'M ' + a.x + ' ' + a.y + ' C ' + a.x + ' ' + (a.y + dy) + ', ' + b.x + ' ' + (b.y - dy) + ', ' + b.x + ' ' + b.y;
+        var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        p.setAttribute('d', d);
+        p.setAttribute('fill', 'none');
+        p.setAttribute('stroke', 'rgba(148,163,184,0.55)');
+        p.setAttribute('stroke-width', '2');
+        p.setAttribute('stroke-linecap', 'round');
+        return p;
+      }
+
+      var nodes = {};
+      rootEl.querySelectorAll('.org-node[data-id]').forEach(function(n){
+        nodes[n.getAttribute('data-id')] = n;
+      });
+
+      // deps connections
+      (departmentsState.deps || []).forEach(function(d){
+        if (!d || d.id == null) return;
+        var child = nodes[String(d.id)];
+        if (!child) return;
+        if (d.parent_id != null) {
+          var parent = nodes[String(d.parent_id)];
+          if (parent) svg.appendChild(path(parent, child));
+        }
+      });
+
+      // virtual root -> roots
+      var vr = nodes['virtual-root'];
+      if (vr) {
+        roots.forEach(function(r){
+          var ch = nodes[String(r.id)];
+          if (ch) svg.appendChild(path(vr, ch));
+        });
+      }
+    }
+
+    var rafLines = null;
+    function scheduleLines() {
+      if (rafLines) return;
+      rafLines = requestAnimationFrame(function(){
+        rafLines = null;
+        updateChartLines();
+      });
+    }
+
     function createNode(dep) {
       var wrap = document.createElement('div');
       wrap.className = 'org-node-wrap';
@@ -1906,6 +1989,7 @@
           var ny = baseY + dy;
           node.style.transform = 'translate(' + nx + 'px, ' + ny + 'px)';
           persist(nx, ny);
+          scheduleLines();
         }
         function onUp() {
           if (!dragging) return;
@@ -1915,6 +1999,7 @@
           var tr = node.style.transform || '';
           var m = tr.match(/translate\(([-0-9.]+)px,\s*([-0-9.]+)px\)/);
           if (m) persist(parseFloat(m[1]), parseFloat(m[2]));
+          scheduleLines();
         }
         node.addEventListener('pointerdown', onDown);
         node.addEventListener('pointermove', onMove);
@@ -1951,6 +2036,7 @@
       // Несколько корней — показываем общий "верх" и все корни ниже
       var top = document.createElement('div');
       top.className = 'org-node';
+      top.setAttribute('data-id', 'virtual-root');
       top.style.cursor = 'default';
       top.innerHTML = '<div class="org-node-title">Ген.Директор</div><div class="org-node-sub"><span>корень</span><span>'+roots.length+' направлений</span></div>';
       var topWrap = document.createElement('div');
@@ -1967,6 +2053,8 @@
       topWrap.appendChild(row);
       rootEl.appendChild(topWrap);
     }
+    // draw SVG connections (after DOM)
+    setTimeout(scheduleLines, 0);
   }
 
   async function createDepartmentsSample() {
