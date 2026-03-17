@@ -170,7 +170,56 @@
     .dept-form label { display:block; font-size: 13px; font-weight: 500; color: var(--text-muted); margin: 10px 0 6px; }
     .dept-form input, .dept-form select { width: 100%; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--input-bg); color: var(--text); font-size: 14px; }
 
-    .org-chart { margin-top: 10px; overflow: auto; padding: 10px 6px 18px; position: relative; }
+    .org-chart { margin-top: 10px; overflow: hidden; padding: 0; position: relative; min-height: 62vh; border-radius: 16px; border: 1px solid var(--border-subtle); background: radial-gradient(ellipse 120% 80% at 50% 0%, rgba(14,165,233,0.08), transparent 55%), rgba(0,0,0,0.04); }
+    body.theme-light .org-chart { background: radial-gradient(ellipse 120% 80% at 50% 0%, rgba(2,132,199,0.10), transparent 55%), rgba(2,132,199,0.03); }
+    .org-chart::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(to right, rgba(148,163,184,0.10) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(148,163,184,0.10) 1px, transparent 1px);
+      background-size: 24px 24px;
+      pointer-events: none;
+      mask-image: radial-gradient(circle at 50% 30%, rgba(0,0,0,0.95), rgba(0,0,0,0.2) 65%, transparent 85%);
+    }
+    .org-hud {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      z-index: 5;
+    }
+    .org-hud .org-zoom {
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      backdrop-filter: blur(6px);
+    }
+    .org-hud .org-btn2 {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 12px;
+      transition: background var(--transition), border-color var(--transition), color var(--transition);
+    }
+    .org-hud .org-btn2:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+    .org-viewport { position: absolute; inset: 0; overflow: hidden; }
+    .org-canvas {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform-origin: 0 0;
+      will-change: transform;
+    }
     .org-lines {
       position: absolute;
       inset: 0;
@@ -195,6 +244,8 @@
     body.theme-light .org-node { box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
     .org-node:hover { border-color: rgba(14,165,233,0.55); transform: translateY(-1px); }
     .org-node.active { border-color: var(--accent); background: rgba(14,165,233,0.10); }
+    .org-node.dim { opacity: 0.25; filter: saturate(0.8); }
+    .org-node.hl { border-color: rgba(14,165,233,0.85); box-shadow: 0 12px 30px rgba(14,165,233,0.18); }
     .org-node-title { font-weight: 800; font-size: 14px; color: var(--text); line-height: 1.25; }
     .org-node-sub { margin-top: 6px; font-size: 12px; color: var(--text-muted); display: flex; justify-content: space-between; gap: 8px; }
     .org-node-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
@@ -1766,6 +1817,18 @@
     var u = getUser();
     var canManage = u && (u.role === 'admin' || u.role === 'chief');
 
+    // viewport + pan/zoom state
+    if (!departmentsState.chart) departmentsState.chart = { x: 40, y: 30, scale: 1 };
+    var chart = departmentsState.chart;
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+    function applyTransform() {
+      var canvas = rootEl.querySelector('.org-canvas');
+      if (!canvas) return;
+      canvas.style.transform = 'translate(' + chart.x + 'px, ' + chart.y + 'px) scale(' + chart.scale + ')';
+      var zoom = rootEl.querySelector('#org-zoom-label');
+      if (zoom) zoom.textContent = Math.round(chart.scale * 100) + '%';
+    }
+
     function deptUserCount(depId) {
       var n = 0;
       for (var i=0;i<users.length;i++) if (users[i].department_id === depId) n++;
@@ -1779,7 +1842,8 @@
         svg.setAttribute('class', 'org-lines');
         svg.setAttribute('width', '100%');
         svg.setAttribute('height', '100%');
-        rootEl.prepend(svg);
+        var canvas = rootEl.querySelector('.org-canvas');
+        if (canvas) canvas.prepend(svg);
       }
       return svg;
     }
@@ -1788,17 +1852,20 @@
       var svg = ensureSvg();
       // clear
       while (svg.firstChild) svg.removeChild(svg.firstChild);
-      var box = rootEl.getBoundingClientRect();
+      var canvas = rootEl.querySelector('.org-canvas');
+      if (!canvas) return;
+      var box = canvas.getBoundingClientRect();
       if (!box.width || !box.height) return;
 
       function pt(el, side) {
         var r = el.getBoundingClientRect();
-        var x = (r.left - box.left) + r.width / 2;
-        var y = side === 'top' ? (r.top - box.top) : (r.bottom - box.top);
+        // Convert from viewport px into canvas coordinate space (before scale)
+        var x = ((r.left - box.left) + r.width / 2) / chart.scale;
+        var y = (side === 'top' ? (r.top - box.top) : (r.bottom - box.top)) / chart.scale;
         return { x: x, y: y };
       }
 
-      function path(fromEl, toEl) {
+      function path(fromEl, toEl, key) {
         var a = pt(fromEl, 'bottom');
         var b = pt(toEl, 'top');
         var dy = Math.max(30, (b.y - a.y) * 0.45);
@@ -1809,11 +1876,12 @@
         p.setAttribute('stroke', 'rgba(148,163,184,0.55)');
         p.setAttribute('stroke-width', '2');
         p.setAttribute('stroke-linecap', 'round');
+        if (key) p.setAttribute('data-edge', key);
         return p;
       }
 
       var nodes = {};
-      rootEl.querySelectorAll('.org-node[data-id]').forEach(function(n){
+      canvas.querySelectorAll('.org-node[data-id]').forEach(function(n){
         nodes[n.getAttribute('data-id')] = n;
       });
 
@@ -1824,7 +1892,7 @@
         if (!child) return;
         if (d.parent_id != null) {
           var parent = nodes[String(d.parent_id)];
-          if (parent) svg.appendChild(path(parent, child));
+          if (parent) svg.appendChild(path(parent, child, String(d.parent_id) + '->' + String(d.id)));
         }
       });
 
@@ -1833,7 +1901,7 @@
       if (vr) {
         roots.forEach(function(r){
           var ch = nodes[String(r.id)];
-          if (ch) svg.appendChild(path(vr, ch));
+          if (ch) svg.appendChild(path(vr, ch, 'virtual-root->' + String(r.id)));
         });
       }
     }
@@ -1853,6 +1921,7 @@
       var node = document.createElement('div');
       node.className = 'org-node' + (departmentsState.selectedId === dep.id ? ' active' : '');
       node.setAttribute('data-id', String(dep.id));
+      node.style.position = 'relative';
 
       var title = document.createElement('div');
       title.className = 'org-node-title';
@@ -1865,7 +1934,7 @@
       node.appendChild(title);
       node.appendChild(sub);
 
-      // apply saved position (server -> fallback local)
+      // apply saved position (server -> fallback local) as translate within canvas
       (function(){
         var x = (typeof dep.pos_x === 'number') ? dep.pos_x : null;
         var y = (typeof dep.pos_y === 'number') ? dep.pos_y : null;
@@ -1937,6 +2006,10 @@
         renderDepartmentsChart();
       });
 
+      // highlight branch on hover
+      node.addEventListener('mouseenter', function(){ highlightBranch(dep.id); });
+      node.addEventListener('mouseleave', function(){ clearHighlight(); });
+
       // draggable (save to server + local fallback)
       (function(){
         var startX = 0, startY = 0, baseX = 0, baseY = 0;
@@ -1983,8 +2056,8 @@
           if (!dragging) return;
           var cx = (e.clientX != null ? e.clientX : (e.touches && e.touches[0] && e.touches[0].clientX)) || 0;
           var cy = (e.clientY != null ? e.clientY : (e.touches && e.touches[0] && e.touches[0].clientY)) || 0;
-          var dx = cx - startX;
-          var dy = cy - startY;
+          var dx = (cx - startX) / chart.scale;
+          var dy = (cy - startY) / chart.scale;
           var nx = baseX + dx;
           var ny = baseY + dy;
           node.style.transform = 'translate(' + nx + 'px, ' + ny + 'px)';
@@ -1998,7 +2071,16 @@
           // final persist already done in move; ensure once if user just clicked
           var tr = node.style.transform || '';
           var m = tr.match(/translate\(([-0-9.]+)px,\s*([-0-9.]+)px\)/);
-          if (m) persist(parseFloat(m[1]), parseFloat(m[2]));
+          if (m) {
+            var nx = parseFloat(m[1]);
+            var ny = parseFloat(m[2]);
+            // snap to grid (24px)
+            var g = 24;
+            nx = Math.round(nx / g) * g;
+            ny = Math.round(ny / g) * g;
+            node.style.transform = 'translate(' + nx + 'px, ' + ny + 'px)';
+            persist(nx, ny);
+          }
           scheduleLines();
         }
         node.addEventListener('pointerdown', onDown);
@@ -2029,9 +2111,81 @@
       return wrap;
     }
 
-    rootEl.innerHTML = '';
+    // layout skeleton (viewport/canvas/hud)
+      rootEl.innerHTML =
+      '<div class="org-hud">' +
+        '<span class="org-zoom" id="org-zoom-label">100%</span>' +
+        '<button type="button" class="org-btn2" id="org-zoom-in">+</button>' +
+        '<button type="button" class="org-btn2" id="org-zoom-out">−</button>' +
+        '<button type="button" class="org-btn2" id="org-zoom-reset">Сброс</button>' +
+        '<button type="button" class="org-btn2" id="org-auto-layout">Авто</button>' +
+        '<button type="button" class="org-btn2" id="org-reset-pos">Сбросить позиции</button>' +
+      '</div>' +
+      '<div class="org-viewport" id="org-viewport"><div class="org-canvas" id="org-canvas"></div></div>';
+    var viewport = rootEl.querySelector('#org-viewport');
+    var canvas = rootEl.querySelector('#org-canvas');
+    applyTransform();
+
+    // pan on empty space
+    (function(){
+      var panning = false, sx = 0, sy = 0, bx = 0, by = 0;
+      function down(e) {
+        if (e.target && e.target.closest && e.target.closest('.org-node')) return;
+        panning = true;
+        sx = e.clientX; sy = e.clientY;
+        bx = chart.x; by = chart.y;
+        viewport.style.cursor = 'grabbing';
+        e.preventDefault();
+      }
+      function move(e) {
+        if (!panning) return;
+        chart.x = bx + (e.clientX - sx);
+        chart.y = by + (e.clientY - sy);
+        applyTransform();
+      }
+      function up() {
+        if (!panning) return;
+        panning = false;
+        viewport.style.cursor = '';
+      }
+      viewport.addEventListener('pointerdown', down);
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+    })();
+
+    // zoom wheel (ctrl+wheel reserved by browser, so plain wheel)
+    viewport.addEventListener('wheel', function(e){
+      e.preventDefault();
+      var delta = -e.deltaY;
+      var factor = delta > 0 ? 1.08 : 1/1.08;
+      var newScale = clamp(chart.scale * factor, 0.55, 2.1);
+      // zoom around mouse
+      var rect = viewport.getBoundingClientRect();
+      var mx = e.clientX - rect.left;
+      var my = e.clientY - rect.top;
+      var wx = (mx - chart.x) / chart.scale;
+      var wy = (my - chart.y) / chart.scale;
+      chart.scale = newScale;
+      chart.x = mx - wx * chart.scale;
+      chart.y = my - wy * chart.scale;
+      applyTransform();
+      scheduleLines();
+    }, { passive: false });
+
+    var zin = rootEl.querySelector('#org-zoom-in');
+    var zout = rootEl.querySelector('#org-zoom-out');
+    var zreset = rootEl.querySelector('#org-zoom-reset');
+    if (zin) zin.addEventListener('click', function(){ chart.scale = clamp(chart.scale * 1.1, 0.55, 2.1); applyTransform(); scheduleLines(); });
+    if (zout) zout.addEventListener('click', function(){ chart.scale = clamp(chart.scale / 1.1, 0.55, 2.1); applyTransform(); scheduleLines(); });
+    if (zreset) zreset.addEventListener('click', function(){ chart.x = 40; chart.y = 30; chart.scale = 1; applyTransform(); scheduleLines(); });
+    var btnAuto = rootEl.querySelector('#org-auto-layout');
+    var btnResetPos = rootEl.querySelector('#org-reset-pos');
+    if (btnAuto) btnAuto.addEventListener('click', function(){ autoLayoutDepartments().catch(function(e){ alert(e.message || 'Ошибка'); }); });
+    if (btnResetPos) btnResetPos.addEventListener('click', function(){ resetAllDepartmentPositions().catch(function(e){ alert(e.message || 'Ошибка'); }); });
+
+    // Build nodes into canvas
     if (roots.length === 1) {
-      rootEl.appendChild(createNode(roots[0]));
+      canvas.appendChild(createNode(roots[0]));
     } else {
       // Несколько корней — показываем общий "верх" и все корни ниже
       var top = document.createElement('div');
@@ -2051,10 +2205,164 @@
         row.appendChild(childWrap);
       });
       topWrap.appendChild(row);
-      rootEl.appendChild(topWrap);
+      canvas.appendChild(topWrap);
     }
     // draw SVG connections (after DOM)
     setTimeout(scheduleLines, 0);
+  }
+
+  function highlightBranch(depId) {
+    var deps = departmentsState.deps || [];
+    var parents = {};
+    var children = {};
+    deps.forEach(function(d){
+      if (d.parent_id != null) {
+        parents[d.id] = d.parent_id;
+        (children[d.parent_id] = children[d.parent_id] || []).push(d.id);
+      }
+    });
+    var up = new Set();
+    var cur = depId;
+    while (parents[cur] != null) { up.add(parents[cur]); cur = parents[cur]; }
+    var down = new Set();
+    (function walk(id){
+      (children[id] || []).forEach(function(c){
+        down.add(c);
+        walk(c);
+      });
+    })(depId);
+    var all = new Set([depId]);
+    up.forEach(function(x){ all.add(x); });
+    down.forEach(function(x){ all.add(x); });
+
+    var chartEl = document.getElementById('departments-chart');
+    if (!chartEl) return;
+    chartEl.querySelectorAll('.org-node[data-id]').forEach(function(n){
+      var idStr = n.getAttribute('data-id');
+      if (idStr === 'virtual-root') return;
+      var id = parseInt(idStr, 10);
+      var keep = all.has(id);
+      n.classList.toggle('dim', !keep);
+      n.classList.toggle('hl', keep);
+    });
+    var svg = chartEl.querySelector('svg.org-lines');
+    if (svg) {
+      svg.querySelectorAll('path[data-edge]').forEach(function(p){
+        var key = p.getAttribute('data-edge');
+        var on = false;
+        if (key) {
+          var parts = key.split('->');
+          if (parts.length === 2) {
+            var a = parts[0] === 'virtual-root' ? null : parseInt(parts[0], 10);
+            var b = parseInt(parts[1], 10);
+            if ((a == null && all.has(b)) || (a != null && all.has(a) && all.has(b))) on = true;
+          }
+        }
+        p.setAttribute('stroke', on ? 'rgba(14,165,233,0.85)' : 'rgba(148,163,184,0.22)');
+        p.setAttribute('stroke-width', on ? '2.5' : '2');
+      });
+    }
+  }
+
+  function clearHighlight() {
+    var chartEl = document.getElementById('departments-chart');
+    if (!chartEl) return;
+    chartEl.querySelectorAll('.org-node').forEach(function(n){
+      n.classList.remove('dim');
+      n.classList.remove('hl');
+    });
+    var svg = chartEl.querySelector('svg.org-lines');
+    if (svg) {
+      svg.querySelectorAll('path').forEach(function(p){
+        p.setAttribute('stroke', 'rgba(148,163,184,0.55)');
+        p.setAttribute('stroke-width', '2');
+      });
+    }
+  }
+
+  async function resetAllDepartmentPositions() {
+    var u = getUser();
+    if (!u || (u.role !== 'admin' && u.role !== 'chief')) { alert('Недостаточно прав'); return; }
+    if (!confirm('Сбросить позиции всех отделов на схеме?')) return;
+    var deps = departmentsState.deps || [];
+    for (var i = 0; i < deps.length; i++) {
+      var d = deps[i];
+      if (!d || d.id == null) continue;
+      d.pos_x = null;
+      d.pos_y = null;
+      try { localStorage.removeItem('dept_pos_' + d.id); } catch (_) {}
+    }
+    // batch save (sequential to avoid перегрузку)
+    for (var j = 0; j < deps.length; j++) {
+      var dd = deps[j];
+      if (!dd || dd.id == null) continue;
+      await api('/departments/' + dd.id, { method: 'PATCH', body: JSON.stringify({ pos_x: null, pos_y: null }) });
+    }
+    showDeptMsg('ok', 'Позиции сброшены');
+    renderDepartmentsChart();
+  }
+
+  async function autoLayoutDepartments() {
+    var u = getUser();
+    if (!u || (u.role !== 'admin' && u.role !== 'chief')) { alert('Недостаточно прав'); return; }
+    var deps = departmentsState.deps || [];
+    if (!deps.length) return;
+    if (!confirm('Автоматически разложить отделы по уровням? Текущие позиции будут перезаписаны.')) return;
+
+    // build adjacency and levels
+    var byId = {};
+    deps.forEach(function(d){ byId[d.id] = d; });
+    var children = {};
+    deps.forEach(function(d){
+      var pid = d.parent_id == null ? null : d.parent_id;
+      if (pid != null) (children[pid] = children[pid] || []).push(d.id);
+    });
+    Object.keys(children).forEach(function(k){
+      children[k].sort(function(a,b){ return String(byId[a].name||'').localeCompare(String(byId[b].name||'')); });
+    });
+    var roots = deps.filter(function(d){ return d.parent_id == null; }).sort(function(a,b){ return String(a.name||'').localeCompare(String(b.name||'')); });
+    var levels = [];
+    var visited = new Set();
+    var q = roots.map(function(r){ return { id: r.id, lvl: 0 }; });
+    while (q.length) {
+      var cur = q.shift();
+      if (visited.has(cur.id)) continue;
+      visited.add(cur.id);
+      if (!levels[cur.lvl]) levels[cur.lvl] = [];
+      levels[cur.lvl].push(cur.id);
+      (children[cur.id] || []).forEach(function(cid){
+        q.push({ id: cid, lvl: cur.lvl + 1 });
+      });
+    }
+
+    var nodeW = 220;
+    var gapX = 80;
+    var gapY = 150;
+    for (var lvl = 0; lvl < levels.length; lvl++) {
+      var ids = levels[lvl] || [];
+      var n = ids.length;
+      var totalW = n * nodeW + (n - 1) * gapX;
+      var startX = -Math.round(totalW / 2) + Math.round(nodeW / 2);
+      for (var idx = 0; idx < n; idx++) {
+        var depId = ids[idx];
+        var d = byId[depId];
+        if (!d) continue;
+        var x = startX + idx * (nodeW + gapX);
+        var y = lvl * gapY;
+        d.pos_x = x;
+        d.pos_y = y;
+      }
+    }
+
+    // persist
+    for (var i = 0; i < deps.length; i++) {
+      var d2 = deps[i];
+      if (!d2 || d2.id == null) continue;
+      await api('/departments/' + d2.id, { method: 'PATCH', body: JSON.stringify({ pos_x: d2.pos_x, pos_y: d2.pos_y }) });
+      try { localStorage.setItem('dept_pos_' + d2.id, JSON.stringify({ x: d2.pos_x, y: d2.pos_y })); } catch (_) {}
+    }
+    showDeptMsg('ok', 'Авто-раскладка выполнена');
+    renderDepartmentsChart();
   }
 
   async function createDepartmentsSample() {
