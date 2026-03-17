@@ -62,6 +62,7 @@ class Task(Base):
 
     ticket_id: Mapped[int | None] = mapped_column(ForeignKey("tickets.id"), nullable=True)
     assignee_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id"), nullable=True)
 
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
@@ -72,4 +73,5 @@ class Task(Base):
 
     ticket = relationship("Ticket", backref="tasks")
     assignee = relationship("User")
+    department = relationship("Department")
 

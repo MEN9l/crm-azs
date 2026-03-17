@@ -1258,7 +1258,6 @@
             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
               <h2 style="margin:0;">Задачи</h2>
               <input type="text" id="tasks-search" data-tooltip="Поиск по названию или описанию задачи" placeholder="Поиск по названию или описанию..." style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--input-bg);color:var(--text);width:220px;max-width:100%;" />
-              <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-size:13px;cursor:pointer;" data-tooltip="Только задачи со сроком на эту неделю"><input type="checkbox" id="tasks-due-week" /> На эту неделю</label>
               <label style="display:inline-flex;align-items:center;gap:6px;margin:0;font-size:13px;cursor:pointer;" data-tooltip="Показывать только задачи, назначенные вам"><input type="checkbox" id="tasks-only-mine" /> Только мои</label>
               <button type="button" class="btn-primary" id="task-create-btn">Создать задачу</button>
             </div>
@@ -1647,17 +1646,8 @@
     <div class="modal-box">
       <h3 id="task-modal-title">Задача</h3>
       <p id="task-modal-description" style="color:var(--text-muted);font-size:14px;margin-bottom:12px;"></p>
-      <label>Статус</label>
-      <select id="task-modal-status">
-        <option value="backlog">Backlog</option>
-        <option value="in_progress">В работе</option>
-        <option value="review">На проверке</option>
-        <option value="done">Выполнена</option>
-      </select>
-      <label id="task-modal-assignee-label">Исполнитель</label>
-      <select id="task-modal-assignee"></select>
-      <label>Срок выполнения</label>
-      <input type="date" id="task-modal-due" style="margin-bottom:12px;" />
+      <label id="task-modal-department-label">Отдел-исполнитель</label>
+      <select id="task-modal-department"></select>
       <label>История изменений</label>
       <div id="task-modal-history" class="modal-comments" style="max-height:120px;"></div>
       <div class="modal-actions" style="margin-top:12px;">
@@ -1686,29 +1676,8 @@
             <textarea id="task-create-description" rows="3" placeholder="Коротко: что сделать и какой результат ожидаем…" class="inline"></textarea>
           </div>
           <div class="field">
-            <label>Статус</label>
-            <select id="task-create-status" class="inline">
-              <option value="backlog" selected>Backlog</option>
-              <option value="in_progress">В работе</option>
-              <option value="review">На проверке</option>
-              <option value="done">Выполнена</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Приоритет</label>
-            <select id="task-create-priority" class="inline">
-              <option value="low">Низкий</option>
-              <option value="normal" selected>Обычный</option>
-              <option value="high">Высокий</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Срок (необязательно)</label>
-            <input type="date" id="task-create-due" class="inline" />
-          </div>
-          <div class="field">
-            <label>Исполнитель (необязательно)</label>
-            <select id="task-create-assignee" class="inline"></select>
+            <label>Отдел-исполнитель</label>
+            <select id="task-create-department" class="inline"></select>
           </div>
         </div>
         <div class="modal-actions">
@@ -3910,37 +3879,39 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     var modal = document.getElementById('task-modal');
     var titleEl = document.getElementById('task-modal-title');
     var descEl = document.getElementById('task-modal-description');
-    var statusEl = document.getElementById('task-modal-status');
-    var assigneeEl = document.getElementById('task-modal-assignee');
+    var depEl = document.getElementById('task-modal-department');
     try {
       var task = await api('/tasks/'+id);
-      var usersList = await api('/users');
+      var deps = await api('/departments');
       var u = getUser();
       var canAssign = u && (u.role === 'admin' || u.role === 'chief');
-      document.getElementById('task-modal-assignee-label').style.display = canAssign ? '' : 'none';
-      assigneeEl.style.display = canAssign ? '' : 'none';
+      document.getElementById('task-modal-department-label').style.display = canAssign ? '' : 'none';
+      depEl.style.display = canAssign ? '' : 'none';
       titleEl.textContent = task.title || 'Задача #'+id;
       descEl.textContent = task.description || '—';
-      statusEl.value = task.status || 'backlog';
-      var taskDueEl = document.getElementById('task-modal-due');
-      if (taskDueEl) taskDueEl.value = task.due_date ? String(task.due_date).slice(0,10) : '';
-      assigneeEl.innerHTML = '<option value="">— не назначен</option>' + usersList.map(function(u){ return '<option value="'+u.id+'" '+(task.assignee_id===u.id?'selected':'')+'>'+escapeHtml(u.full_name)+'</option>'; }).join('');
+      depEl.innerHTML = '<option value="">— не выбран</option>' + deps.map(function(d){ return '<option value="'+d.id+'" '+(task.department_id===d.id?'selected':'')+'>'+escapeHtml(d.name)+'</option>'; }).join('');
       var taskHistoryEl = document.getElementById('task-modal-history');
       try {
         var thList = await api('/tasks/'+id+'/history');
-        var fieldLabels = { status: 'Статус', assignee_id: 'Исполнитель', due_date: 'Срок' };
+        var fieldLabels = { status: 'Статус', department_id: 'Отдел', due_date: 'Срок', assignee_id: 'Исполнитель' };
         taskHistoryEl.innerHTML = thList.length ? thList.map(function(h){ var fn = fieldLabels[h.field_name] || h.field_name; return '<div class="modal-comment"><strong>'+escapeHtml(h.user&&h.user.full_name||'')+'</strong>: '+fn+' — ' + (h.old_value ? escapeHtml(h.old_value) : '—') + ' → ' + (h.new_value ? escapeHtml(h.new_value) : '—') + ' <span class="chat-message-time">'+formatDate(h.created_at)+'</span></div>'; }).join('') : '<div class="chat-message-time">Нет изменений</div>';
       } catch(_) { taskHistoryEl.innerHTML = '<div class="chat-message-time">Нет изменений</div>'; }
       modal.classList.remove('hidden');
     } catch (err) { alert(err.message); }
   }
   document.getElementById('task-modal-close').addEventListener('click', function(){ document.getElementById('task-modal').classList.add('hidden'); currentTaskId = null; });
-  document.getElementById('task-modal-status').addEventListener('change', function(){ if (!currentTaskId) return; api('/tasks/'+currentTaskId, { method: 'PATCH', body: JSON.stringify({ status: this.value }) }).then(function(){ loadTasks(); }).catch(function(e){ alert(e.message); }); });
-  document.getElementById('task-modal-assignee').addEventListener('change', function(){ if (!currentTaskId) return; var v = this.value; var assignee_id = v ? parseInt(v,10) : null; api('/tasks/'+currentTaskId, { method: 'PATCH', body: JSON.stringify({ assignee_id: assignee_id }) }).catch(function(e){ alert(e.message); }); });
-  document.getElementById('task-modal-due').addEventListener('change', function(){ if (!currentTaskId) return; var v = this.value || null; api('/tasks/'+currentTaskId, { method: 'PATCH', body: JSON.stringify({ due_date: v }) }).then(function(){ openTask(currentTaskId); }).catch(function(e){ alert(e.message); }); });
+  if (document.getElementById('task-modal-department')) {
+    document.getElementById('task-modal-department').addEventListener('change', function(){
+      if (!currentTaskId) return;
+      var v = this.value;
+      var department_id = v ? parseInt(v,10) : null;
+      api('/tasks/'+currentTaskId, { method: 'PATCH', body: JSON.stringify({ department_id: department_id }) })
+        .then(function(){ loadTasks(); })
+        .catch(function(e){ alert(e.message); });
+    });
+  }
   var tasksSearchEl = document.getElementById('tasks-search');
   if (tasksSearchEl) { var tasksSearchT; tasksSearchEl.addEventListener('input', function(){ clearTimeout(tasksSearchT); tasksSearchT = setTimeout(loadTasks, 350); }); tasksSearchEl.addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); loadTasks(); } }); }
-  if (document.getElementById('tasks-due-week')) document.getElementById('tasks-due-week').addEventListener('change', loadTasks);
   if (document.getElementById('tasks-only-mine')) document.getElementById('tasks-only-mine').addEventListener('change', loadTasks);
 
   function taskStatusLabel(v) {
@@ -3949,11 +3920,8 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
   }
 
   function renderTaskCard(t) {
-    var overdue = isOverdue(t.due_date, t.status);
-    var pr = t.priority || 'normal';
-    var prBadge = '<span class="badge badge-priority-' + pr + '">' + priorityLabel(pr) + '</span>';
-    var due = t.due_date ? (' · ' + formatDateOnly(t.due_date)) : '';
-    var meta = '<div class="kanban-meta">' + prBadge + '<span style="margin-left:8px;color:var(--text-muted);font-size:12px;">' + escapeHtml(due ? due.slice(3) : '') + '</span></div>';
+    var depName = (t.department && (t.department.name || '')) ? t.department.name : '';
+    var meta = depName ? ('<div class="kanban-meta" style="color:var(--text-muted);font-size:12px;margin-top:6px;">🏢 ' + escapeHtml(depName) + '</div>') : '<div class="kanban-meta" style="color:var(--text-muted);font-size:12px;margin-top:6px;">Без отдела</div>';
     return '<div class="kanban-title">'+escapeHtml(t.title)+'</div>' + meta;
   }
 
@@ -3961,11 +3929,9 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
     const root = document.getElementById('kanban-root');
     const loading = document.getElementById('tasks-loading');
     var searchQ = (document.getElementById('tasks-search') && document.getElementById('tasks-search').value) ? document.getElementById('tasks-search').value.trim() : '';
-    var dueWeek = document.getElementById('tasks-due-week') && document.getElementById('tasks-due-week').checked;
     var onlyMine = document.getElementById('tasks-only-mine') && document.getElementById('tasks-only-mine').checked;
     var params = [];
     if (searchQ) params.push('q=' + encodeURIComponent(searchQ));
-    if (dueWeek) params.push('due_week=true');
     var query = params.length ? '?' + params.join('&') : '';
     loading.style.display = 'block';
     loading.className = 'skeleton-wrap';
@@ -3978,7 +3944,8 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       const statuses = ['backlog','in_progress','review','done'];
       var me = getUser();
       var filtered = list;
-      if (onlyMine && me) filtered = filtered.filter(function(t){ return t.assignee_id === me.id; });
+      // "Только мои" теперь понимаем как "мой отдел"
+      if (onlyMine && me && me.department_id) filtered = filtered.filter(function(t){ return t.department_id === me.department_id; });
       var counts = {};
       statuses.forEach(function(s){ counts[s] = filtered.filter(function(t){ return t.status === s; }).length; });
       root.innerHTML = statuses.map(function(st){
@@ -3992,7 +3959,6 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
           card.style.cursor = 'pointer';
           card.setAttribute('data-id', t.id);
           card.innerHTML = renderTaskCard(t);
-          if (isOverdue(t.due_date, t.status)) card.classList.add('is-overdue');
           card.setAttribute('draggable', 'true');
           card.addEventListener('click', function(){ openTask(parseInt(card.getAttribute('data-id'),10)); });
           card.addEventListener('dragstart', function(ev){
@@ -4041,18 +4007,14 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
   if (document.getElementById('task-create-cancel')) document.getElementById('task-create-cancel').addEventListener('click', closeTaskCreateModal);
   if (document.getElementById('task-create-btn')) {
     document.getElementById('task-create-btn').addEventListener('click', function(){
-      api('/users').then(function(users){
-        var sel = document.getElementById('task-create-assignee');
+      api('/departments').then(function(deps){
+        var sel = document.getElementById('task-create-department');
         var me = getUser();
         var canAssign = me && (me.role === 'admin' || me.role === 'chief');
         if (!sel) return;
-        if (!canAssign) {
-          sel.innerHTML = '<option value="">— недоступно</option>';
-          sel.disabled = true;
-        } else {
-          sel.disabled = false;
-          sel.innerHTML = '<option value="">— не назначен</option>' + users.map(function(u){ return '<option value="'+u.id+'">'+escapeHtml(u.full_name)+'</option>'; }).join('');
-        }
+        // Отдел выбирать можно всем, но менять его в задаче — только admin/chief (в модалке просмотра)
+        sel.disabled = false;
+        sel.innerHTML = '<option value="">— выбрать отдел</option>' + deps.map(function(d){ return '<option value="'+d.id+'">'+escapeHtml(d.name)+'</option>'; }).join('');
         document.getElementById('task-create-modal').classList.remove('hidden');
         document.getElementById('task-create-title').focus();
       }).catch(function(e){ alert(e.message); });
@@ -4065,19 +4027,16 @@ return '<tr data-id="'+u.id+'"><td>'+escapeHtml(u.email)+'</td><td>'+escapeHtml(
       if (!title) return;
       var payload = {
         title: title,
-        description: (document.getElementById('task-create-description').value || '').trim() || null,
-        status: document.getElementById('task-create-status').value,
-        priority: document.getElementById('task-create-priority').value,
-        due_date: document.getElementById('task-create-due').value || null
+        description: (document.getElementById('task-create-description').value || '').trim() || null
       };
-      var as = document.getElementById('task-create-assignee');
-      if (as && as.value) payload.assignee_id = parseInt(as.value, 10);
+      var dep = document.getElementById('task-create-department');
+      if (!dep || !dep.value) { alert('Выберите отдел-исполнитель'); return; }
+      payload.department_id = parseInt(dep.value, 10);
       api('/tasks', { method:'POST', body: JSON.stringify(payload) }).then(function(){
         closeTaskCreateModal();
         document.getElementById('task-create-title').value = '';
         document.getElementById('task-create-description').value = '';
-        document.getElementById('task-create-due').value = '';
-        if (as) as.value = '';
+        if (dep) dep.value = '';
         loadTasks();
         playSound('notification');
       }).catch(function(err){ alert(err.message); });

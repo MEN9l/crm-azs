@@ -22,7 +22,7 @@ def list_tasks(
     search: str | None = Query(None, alias="q"),
     due_week: bool = Query(False, description="Только задачи со сроком на эту неделю"),
 ):
-    q = db.query(Task).options(joinedload(Task.assignee)).order_by(Task.id.desc())
+    q = db.query(Task).options(joinedload(Task.assignee), joinedload(Task.department)).order_by(Task.id.desc())
     if status_filter:
         q = q.filter(Task.status == status_filter)
     if due_week:
@@ -41,7 +41,7 @@ def get_task(
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User, Depends(get_current_user)],
 ):
-    task = db.query(Task).options(joinedload(Task.assignee)).filter(Task.id == task_id).first()
+    task = db.query(Task).options(joinedload(Task.assignee), joinedload(Task.department)).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
     return task
@@ -59,13 +59,14 @@ def create_task(
         status=getattr(data, "status", "backlog") or "backlog",
         priority=data.priority,
         ticket_id=data.ticket_id,
-        assignee_id=(data.assignee_id if (getattr(data, "assignee_id", None) and user.role in ("admin", "chief")) else None),
+        assignee_id=None,
+        department_id=getattr(data, "department_id", None),
         due_date=data.due_date,
     )
     db.add(task)
     db.commit()
     db.refresh(task)
-    task = db.query(Task).options(joinedload(Task.assignee)).filter(Task.id == task.id).first()
+    task = db.query(Task).options(joinedload(Task.assignee), joinedload(Task.department)).filter(Task.id == task.id).first()
     return task
 
 
@@ -99,7 +100,8 @@ def update_task(
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена")
     updates = data.model_dump(exclude_unset=True)
-    history_fields = ("status", "assignee_id", "due_date")
+    # assignee_id оставляем в модели для совместимости, но в UI используем department_id
+    history_fields = ("status", "assignee_id", "department_id", "due_date")
     old_vals = {k: getattr(task, k) for k in history_fields if k in updates}
     for k, v in updates.items():
         setattr(task, k, v)
@@ -113,5 +115,5 @@ def update_task(
             db.add(TaskHistory(task_id=task_id, user_id=user.id, field_name=k, old_value=old_s, new_value=new_s))
     db.commit()
     db.refresh(task)
-    task = db.query(Task).options(joinedload(Task.assignee)).filter(Task.id == task_id).first()
+    task = db.query(Task).options(joinedload(Task.assignee), joinedload(Task.department)).filter(Task.id == task_id).first()
     return task

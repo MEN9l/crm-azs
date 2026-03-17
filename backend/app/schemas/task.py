@@ -12,6 +12,7 @@ class TaskBase(BaseModel):
     priority: str = "normal"
     ticket_id: int | None = None
     assignee_id: int | None = None
+    department_id: int | None = None
     due_date: date | None = None
 
 
@@ -22,6 +23,7 @@ class TaskCreate(BaseModel):
     ticket_id: int | None = None
     assignee_id: int | None = None
     status: str = "backlog"
+    department_id: int | None = None
     due_date: date | None = None
 
 
@@ -31,6 +33,7 @@ class TaskUpdate(BaseModel):
     status: str | None = None
     priority: str | None = None
     assignee_id: int | None = None
+    department_id: int | None = None
     due_date: date | None = None
 
 
